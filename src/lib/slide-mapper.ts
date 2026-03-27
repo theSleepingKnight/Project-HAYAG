@@ -38,12 +38,13 @@ export function mapToSlides(
 
   // Add section divider if provided
   if (sectionTitle) {
+    const allSdos = Object.values(userGroups).flat();
     slides.push({
       type: 'divider',
       sectionTitle,
       quarter,
       groupName: '',
-      sdosInThisSlide: [],
+      sdosInThisSlide: allSdos,
       programSections: [],
     });
   }

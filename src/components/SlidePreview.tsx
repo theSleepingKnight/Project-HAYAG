@@ -58,11 +58,19 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
 
   // ── DIVIDER SLIDE ──────────────────────────────────────────────────────────
   if (slide.type === 'divider') {
+    const qNum = slide.quarter.match(/\d/)?.[0] || '1';
+    const ordinals: Record<string, string> = { '1': '1st', '2': '2nd', '3': '3rd', '4': '4th' };
+    const fullHeading = `${ordinals[qNum] || qNum} Quarter Monitoring Report`;
     return (
       <div className={`${styles.slide} ${styles.dividerSlide}`}>
         <div className={styles.dividerContent}>
+          <p className={styles.dividerQuarter}>{fullHeading}</p>
           <h1 className={styles.dividerTitle}>{slide.sectionTitle}</h1>
-          <p className={styles.dividerQuarter}>{slide.quarter} Monitoring Report</p>
+          {slide.sdosInThisSlide && slide.sdosInThisSlide.length > 0 && (
+            <div className={styles.dividerSdoList}>
+              {slide.sdosInThisSlide.join(' | ')}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -120,6 +128,7 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
 
                     {/* Indicator rows */}
                     {group.rows.map((row, ri) => {
+                      const isSubItem = /^[a-z]\.\s/.test(row.text.trim());
 
                       // ── Parent label row: spans all columns ─────────────
                       if (row.isParentLabel) {
@@ -136,8 +145,10 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                       return (
                         <tr key={ri} className={styles.indicatorRow}>
 
-                          {/* Indicator text */}
-                          <td className={styles.indicatorCell}>{row.text}</td>
+                          {/* Indicator text with dynamic hierarchy indentation */}
+                          <td className={`${styles.indicatorCell} ${isSubItem ? styles.subItemCell : ''}`}>
+                            {row.text}
+                          </td>
 
                           {/* Annual Physical Target — structured breakdown */}
                           <td className={styles.targetCell}>
@@ -158,7 +169,7 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                             return (
                               <td key={sdo} className={styles.sdoCell} style={{ color }}>
                                 {isEmpty ? (
-                                  <span className={styles.na}>Data Not Yet Available</span>
+                                  <span className={styles.na}>—</span>
                                 ) : (
                                   <>
                                     <span className={styles.sdoValue}>

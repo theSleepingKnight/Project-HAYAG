@@ -8,49 +8,70 @@
   flex-direction: column;
   position: relative;
   font-family: Arial, sans-serif;
-  font-size: 24px;        /* Base 24px as requested */
+  font-size: 24px;
   box-sizing: border-box;
 }
 
 /* ─── Divider Slide ─────────────────────────────────────────────────────────── */
 .dividerSlide {
   background: var(--deped-navy);
-  color: white;
+  color: #FFD700;           /* DepEd Gold */
   align-items: center;
   justify-content: center;
   text-align: center;
   min-height: 540px;
+  padding: 3rem;
+  border: 12px solid #FFD700; /* Extra gold border for theme */
 }
 
 .dividerContent {
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.5rem;   /* Space between elements */
+  padding: 2rem 0;
 }
 
 .dividerTitle {
   font-family: Arial, sans-serif;
-  font-size: 22pt;
+  font-size: 20pt;          /* FIX: Reduced from 32pt */
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  margin-bottom: 1rem;
+  color: white;
+  margin: 0;
 }
 
 .dividerQuarter {
   font-family: Arial, sans-serif;
-  font-size: 16pt;
-  opacity: 0.8;
+  font-size: 28pt;          /* FIX: Enlarged for emphasis */
+  font-weight: 900;
+  color: #FFD700;           /* DepEd Gold */
+  margin: 0;
+}
+
+.dividerSdoList {
+  font-size: 14pt;          /* FIX: Smaller font for 1-line display */
+  color: rgba(255, 255, 255, 0.85);
+  max-width: 95%;
+  margin: 0 auto;
+  white-space: nowrap;      /* FIX: 1 Line only */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.05em;
 }
 
 /* ─── Data Slide Header ─────────────────────────────────────────────────────── */
 .header {
   margin-bottom: 0.75rem;
-  border-bottom: 3px solid var(--deped-gold);
+  border-bottom: 4px solid var(--deped-gold);
   padding-bottom: 0.4rem;
 }
 
 .quarterTag {
-  font-size: 0.7rem;
-  font-weight: 700;
+  font-size: 0.8rem;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--deped-navy);
@@ -60,127 +81,148 @@
 .tableArea {
   flex: 1;
   overflow: auto;
+  border: 2px solid #1b365d; /* Thick outer border for the whole table area */
 }
 
 .comparisonTable {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.72rem;
+  table-layout: fixed;
+  border: 2px solid #1b365d; /* FIX: Thick border OUTSIDE */
 }
 
 /* ─── Column Header Row ─────────────────────────────────────────────────────── */
 .comparisonTable thead th {
   background: var(--deped-navy);
   color: #ffffff;
-  padding: 0.6rem 0.5rem;
+  padding: 0.45rem 0.25rem;  /* Tighter padding */
   font-family: Arial, sans-serif;
-  font-size: 20px;          /* Slightly smaller than body so headers don't overpower */
-  font-weight: 700;
-  border: 1px solid #2a4a7a;
+  font-size: 12px;          /* FIX: Much smaller to avoid squashing text */
+  font-weight: 800;
+  border: 1.5px solid #ffffff;
   text-align: center;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: normal;
   vertical-align: middle;
+  word-break: break-word;   /* Allow breaking but prefer fitting */
+  line-height: 1.15;
 }
 
-/* Column widths */
-.mainCol    { width: 28%; text-align: left !important; }
-.targetCol  { width: 10%; }
-.sdoCol     { width: 10%; }
-.remarksCol { width: 16%; text-align: left !important; }
+/* FIX: Specific color-matched headers */
+.mainCol    { width: 38%; text-align: left !important; background: #1B365D !important; }
+.targetCol  { width: 9%; }
+.sdoCol     { width: 7%; }
+.remarksCol { width: 9%; text-align: left !important; background: #1B365D !important; }
 
 /* ─── Program Spanning Row ──────────────────────────────────────────────────── */
-
 .programCell {
   background: #1B365D;
   color: #FFD700;
   font-family: Arial, sans-serif;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 0.5rem 0.6rem;
-  border: 1px solid #0f2240;
+  border: 2px solid #0f2240;
 }
 
 /* ─── Indicator Group Label Row (Outcome / Output Indicator(s)) ─────────────── */
-
 .groupLabelCell {
   background: #f3e8ff;
   color: #6b21a8;
   font-family: Arial, sans-serif;
-  font-size: 24px;
+  font-size: 20px;
   font-style: italic;
   font-weight: 700;
   padding: 0.4rem 0.6rem;
-  border: 1px solid #e9d5ff;
+  border: 1.5px solid #e9d5ff;
 }
 
 /* ─── Indicator Data Rows ───────────────────────────────────────────────────── */
 .indicatorRow:nth-child(even) td {
   background: #f8fafc;
 }
+.indicatorRow:nth-child(odd) td {
+  background: #ffffff;
+}
+
+/* Light vertical shading for SDO columns */
+.sdoCell:nth-child(even) {
+  background-color: rgba(226, 232, 240, 0.4) !important;
+}
 
 .indicatorCell {
-  padding: 0.55rem 0.6rem;
-  border: 1px solid #e2e8f0;
+  padding: 0.5rem 0.6rem;
+  border: 1.5px solid #1b365d; /* FIX: Borders on EVERYTHING inside */
   color: var(--deped-navy);
   font-family: Arial, sans-serif;
-  font-size: 24px;          /* 24px as requested */
-  font-weight: 700;         /* Bold as requested */
+  font-size: 20px;
+  font-weight: 700;
   vertical-align: middle;
   line-height: 1.4;
+  word-break: break-word;
+}
+
+.subItemCell {
+  padding: 0.4rem 0.6rem 0.4rem 1.6rem !important;
+  border-left: 8px solid #3b82f6 !important; /* Emphasized blue border */
+  font-style: italic;
+  color: #1e3a8a !important;
+  font-size: 19px !important;
 }
 
 .targetCell {
-  padding: 0.5rem 0.4rem;
-  border: 1px solid #e2e8f0;
+  padding: 0.4rem 0.3rem;
+  border: 1.5px solid #1b365d; /* FIX: Borders on EVERYTHING inside */
   text-align: center;
   font-family: Arial, sans-serif;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   color: #334155;
   vertical-align: middle;
 }
 
 .sdoCell {
-  padding: 0.5rem 0.3rem;
-  border: 1px solid #e2e8f0;
+  padding: 0.4rem 0.25rem;
+  border: 1.5px solid #1b365d; /* FIX: Borders on EVERYTHING inside */
   text-align: center;
   vertical-align: middle;
   font-family: Arial, sans-serif;
-  font-size: 24px;
+  font-size: 20px;
 }
 
 .sdoValue {
   font-weight: 800;
-  font-size: 24px;
+  font-size: 19px;
   display: block;
 }
 
 .fraction {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 400;
-  color: #94a3b8;
-  margin-top: 2px;
+  color: #64748b;
+  margin-top: 1px;
 }
 
 .remarksCell {
-  padding: 0.5rem 0.5rem;
-  border: 1px solid #e2e8f0;
+  padding: 0.4rem 0.5rem;
+  border: 1.5px solid #1b365d; /* FIX: Borders on EVERYTHING inside */
   color: #475569;
   font-family: Arial, sans-serif;
-  font-size: 22px;
+  font-size: 16px;
   font-style: italic;
-  line-height: 1.3;
+  line-height: 1.35;
   vertical-align: middle;
+  word-break: break-word;
 }
 
 /* ─── Not Available Placeholder ────────────────────────────────────────────── */
 .na {
   color: #cbd5e1;
   font-family: Arial, sans-serif;
-  font-size: 20px;
+  font-size: 16px;
   font-style: italic;
   font-weight: 400;
 }
@@ -188,36 +230,32 @@
 /* ─── Footer ────────────────────────────────────────────────────────────────── */
 .footer {
   margin-top: 0.75rem;
-  font-size: 0.6rem;
+  font-size: 0.65rem;
+  font-weight: 700;
   color: var(--slate-400);
-  border-top: 1px solid var(--slate-100);
+  border-top: 2px solid var(--slate-100);
   padding-top: 0.4rem;
 }
 
-/* ─── Parent Label Row ───────────────────────────────────────────────────────
-   Numbered indicator rows that own sub-items (a/b/c). No data of their own.
-   Span all columns, indented and italicized to show hierarchy.
-*/
+/* ─── Parent Label Row ─────────────────────────────────────────────────────── */
 .parentLabelCell {
-  padding: 0.35rem 0.6rem 0.35rem 1.4rem;  /* extra left indent */
-  border: 1px solid #e2e8f0;
-  border-left: 3px solid #c084fc;           /* purple left accent */
+  padding: 0.4rem 0.6rem 0.4rem 0.85rem;
+  border: 1.5px solid #1b365d;
+  border-left: 6px solid #c084fc;
   background: #fdf4ff;
   color: #581c87;
   font-family: Arial, sans-serif;
-  font-size: 22px;
+  font-size: 20px;
   font-style: italic;
-  font-weight: 700;
+  font-weight: 800;
   text-align: left;
 }
 
-/* ─── Annual Target Breakdown ────────────────────────────────────────────────
-   Renders: CO: 50  /  RO: 62  /  = 112
-*/
+/* ─── Annual Target Breakdown ──────────────────────────────────────────────── */
 .targetBreakdown {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   align-items: center;
 }
 
@@ -226,31 +264,31 @@
   align-items: center;
   gap: 4px;
   font-family: Arial, sans-serif;
-  font-size: 22px;
+  font-size: 16px;
   line-height: 1.2;
 }
 
 .targetLabel {
   color: #94a3b8;
   font-weight: 500;
-  font-style: normal;
-  font-size: 20px;
+  font-size: 14px;
   min-width: 20px;
 }
 
 .targetNum {
   font-weight: 700;
   color: #1e293b;
+  font-size: 16px;
 }
 
 .targetTotal {
   font-family: Arial, sans-serif;
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 800;
   color: #1B365D;
   border-top: 1px solid #cbd5e1;
-  padding-top: 2px;
-  margin-top: 2px;
+  padding-top: 1px;
+  margin-top: 1px;
   width: 100%;
   text-align: center;
 }

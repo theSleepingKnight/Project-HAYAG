@@ -5,7 +5,7 @@ import styles from './GeneratorOptions.module.css';
 
 interface GeneratorOptionsProps {
   availableSections: { prexc: string | null; nonPrexc: string | null };
-  onSectionChange: (section: 'prexc' | 'nonPrexc') => void;
+  onSectionChange: (section: 'prexc' | 'nonPrexc' | 'master') => void;
   onGenerate: (format: 'pdf' | 'slides', options: { quarter: string; template: string }) => void;
 }
 
@@ -14,13 +14,13 @@ export default function GeneratorOptions({
   onSectionChange,
   onGenerate,
 }: GeneratorOptionsProps) {
-  const [activeSection, setActiveSection] = useState<'prexc' | 'nonPrexc'>(
+  const [activeSection, setActiveSection] = useState<'prexc' | 'nonPrexc' | 'master'>(
     availableSections.prexc ? 'prexc' : 'nonPrexc'
   );
   const [activeQuarter, setActiveQuarter] = useState('Q1');
   const [activeTemplate, setActiveTemplate] = useState('Formal');
 
-  const handleSectionSwitch = (section: 'prexc' | 'nonPrexc') => {
+  const handleSectionSwitch = (section: 'prexc' | 'nonPrexc' | 'master') => {
     setActiveSection(section);
     onSectionChange(section);
   };
@@ -43,7 +43,7 @@ export default function GeneratorOptions({
             >
               <span className={styles.sectionIcon}>📋</span>
               PREXC
-              <span className={styles.sectionSub}>Program Expenditure Classification</span>
+              <span className={styles.sectionSub}>Program Category</span>
             </button>
           )}
           {availableSections.nonPrexc && (
@@ -53,7 +53,17 @@ export default function GeneratorOptions({
             >
               <span className={styles.sectionIcon}>📁</span>
               NON-PREXC
-              <span className={styles.sectionSub}>Non-Program Expenditure Classification</span>
+              <span className={styles.sectionSub}>Non-Program Category</span>
+            </button>
+          )}
+          {availableSections.prexc && availableSections.nonPrexc && (
+            <button
+              className={`${styles.sectionBtn} ${activeSection === 'master' ? styles.sectionActive : ''}`}
+              onClick={() => handleSectionSwitch('master')}
+            >
+              <span className={styles.sectionIcon}>🌟</span>
+              COMBINED
+              <span className={styles.sectionSub}>Master Report (Both)</span>
             </button>
           )}
         </div>
@@ -75,37 +85,7 @@ export default function GeneratorOptions({
         </div>
       </div>
 
-      {/* 2. Template Selector */}
-      <div className={styles.section}>
-        <span className={styles.label}>Choose Design Theme</span>
-        <div className={styles.buttonGrid}>
-          {['Formal', 'Presentation'].map((t) => (
-            <button
-              key={t}
-              className={`${styles.optionBtn} ${activeTemplate === t ? styles.active : ''}`}
-              onClick={() => setActiveTemplate(t)}
-            >
-              {t === 'Formal' ? 'The Formal Corporate (Classic)' : 'The Presentation Modern (Visual)'}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 3. Export Actions — "Generate All" buttons */}
-      <div className={styles.generateArea}>
-        <button
-          className={`${styles.exportBtn} ${styles.pdfBtn}`}
-          onClick={() => handleExport('pdf')}
-        >
-          ⬇ Download All Groups (PDF)
-        </button>
-        <button
-          className={`${styles.exportBtn} ${styles.slidesBtn}`}
-          onClick={() => handleExport('slides')}
-        >
-          🔗 Create Google Slides (Editable)
-        </button>
-      </div>
+      {/* Template Selector removed (Defaulting to Formal PDF theme) */}
 
     </div>
   );

@@ -1,19 +1,31 @@
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import { saveAs } from 'file-saver';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const A4_W_PX  = 1122;   // A4 landscape at 96 DPI (841.89pt × 96/72)
 const SCALE    = 1.5;    // Capture scale for crisp rendering
 const MARGIN   = 30;     // PDF point margin
 const FOOTER_H = 22;     // PDF points reserved for footer
+const NAVY_RGB = [27, 54, 93];
 
 // ─── Public interface ───────────────────────────────────────────────────────────
 export interface PdfOptions {
   filename:     string;
-  quarter:      string;           // e.g. 'Q1' or 'First Quarter'
-  date:         string;           // e.g. '2026-03-26'
-  location:     string;           // e.g. 'DepEd Region IX, Pagadian City'
-  outlineItems: string[];         // Agenda / outline list
+  quarter:      string;           // Q1, Q2, etc.
+  date:         string;           // YYYY-MM-DD
+  location:     string;
+  outlineItems: string[];         // Agenda list
+}
+
+async function loadImageAsBase64(url: string): Promise<string> {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.readAsDataURL(blob);
+  });
 }
 
 // ─── Main Entry Point ───────────────────────────────────────────────────────────
@@ -22,430 +34,275 @@ export async function generateHAYAGPdf(
   options: PdfOptions
 ) {
   const container = document.getElementById(hiddenContainerId);
-  if (!container) {
-    console.error(`PDF Error: Hidden container #${hiddenContainerId} not found.`);
-    return;
-  }
+  if (!container) return;
 
-  const { filename, quarter, date, location, outlineItems } = options;
+  const { filename: rawFilename, quarter, date, location, outlineItems } = options;
+  const filename = rawFilename.replace(/\s+/g, '_');
 
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
   const pdfW = pdf.internal.pageSize.getWidth();   // 841.89 pt
   const pdfH = pdf.internal.pageSize.getHeight();  // 595.28 pt
-
-  // px→pt ratio for A4 landscape (DPI conversion: 72/96 = 0.75)
   const ratio = (pdfW - 2 * MARGIN) / A4_W_PX;
 
-  // ── 1. COVER PAGE ─────────────────────────────────────────────────────────────
-  drawCoverPage(pdf, pdfW, pdfH, quarter, date, location);
+  // 1. Cover
+  let logoBase64 = '';
+  try {
+    logoBase64 = await loadImageAsBase64('/deped-region9.png');
+  } catch (e) {
+    console.warn('Could not load logo:', e);
+  }
+  drawCoverPage(pdf, pdfW, pdfH, quarter, date, location, logoBase64);
 
-  // ── 2. OUTLINE / AGENDA PAGE ─────────────────────────────────────────────────
+  // 2. Agenda
   if (outlineItems.length > 0) {
     pdf.addPage();
     drawOutlinePage(pdf, pdfW, pdfH, outlineItems);
   }
 
-  // ── 3. DATA TABLE SLIDES ──────────────────────────────────────────────────────
+  // 3. Slides
   const slides = Array.from(container.children) as HTMLElement[];
-
   for (const slide of slides) {
     const thead = slide.querySelector('thead') as HTMLElement | null;
     const tbody = slide.querySelector('tbody') as HTMLElement | null;
 
-    // 3a. Capture header for repeat
-    let headerCanvas: HTMLCanvasElement | null = null;
-    let scaledHeaderHPt = 0;
+    let hOffsetPx = 0, hHeightPx = 0;
     if (thead) {
-      headerCanvas = await html2canvas(thead, {
-        scale: SCALE, useCORS: true, backgroundColor: '#1B365D',
-        width: A4_W_PX, windowWidth: A4_W_PX,
-      });
-      scaledHeaderHPt = thead.offsetHeight * ratio;
+      hOffsetPx = getOffsetFromAncestor(thead, slide);
+      hHeightPx = thead.offsetHeight;
     }
+    const scaledHPt = hHeightPx * ratio;
 
-    // 3b. Capture full slide
     const fullCanvas = await html2canvas(slide, {
       scale: SCALE, useCORS: true, backgroundColor: '#ffffff',
       width: A4_W_PX, windowWidth: A4_W_PX,
     });
 
     const totalCssPx = fullCanvas.height / SCALE;
-
-    // 3c. Pre-compute row bounds
     const allRows  = tbody ? Array.from(tbody.querySelectorAll('tr')) as HTMLElement[] : [];
     const rowBounds = allRows.map(r => ({
       top:    getOffsetFromAncestor(r, slide),
       bottom: getOffsetFromAncestor(r, slide) + r.offsetHeight,
     }));
 
-    // 3d. Auto-fit: if content is ≤ 140% of one page, scale to fit single page
-    const page1MaxPx   = (pdfH - 2 * MARGIN - FOOTER_H) / ratio;
-    const singleFitPx  = page1MaxPx * 1.4;  // 140% threshold
-    const useAutoFit   = totalCssPx <= singleFitPx;
-
+    const p1MaxPx = (pdfH - 2 * MARGIN - FOOTER_H) / ratio;
     pdf.addPage();
 
-    if (useAutoFit && totalCssPx > page1MaxPx) {
-      // Scale the canvas down to fit in one page — visually shrinks text
-      drawAutoFitSlide(pdf, fullCanvas, pdfW, pdfH, ratio, totalCssPx, page1MaxPx);
+    // Data rendering
+    if (totalCssPx <= p1MaxPx * 1.4 && totalCssPx > p1MaxPx) {
+      drawAutoFitSlide(pdf, fullCanvas, pdfW, pdfH, ratio, totalCssPx, p1MaxPx);
     } else {
-      // Multi-page rendering with repeating header
       await renderSlideMultiPage(
-        pdf, fullCanvas, headerCanvas,
-        scaledHeaderHPt, ratio,
-        pdfW, pdfH, totalCssPx, rowBounds,
-        filename
+        pdf, fullCanvas, hOffsetPx, hHeightPx, scaledHPt, ratio,
+        pdfW, pdfH, totalCssPx, rowBounds, filename
       );
     }
   }
 
-  pdf.save(filename);
+  const blob = pdf.output('blob');
+  saveAs(blob, filename);
 }
 
 // ─── Cover Page ────────────────────────────────────────────────────────────────
 function drawCoverPage(
-  pdf: jsPDF,
-  pdfW: number, pdfH: number,
-  quarter: string,
-  date: string,
-  location: string,
+  pdf: jsPDF, pdfW: number, pdfH: number,
+  quarter: string, date: string, location: string, logo?: string
 ) {
-  // Navy blue background
-  pdf.setFillColor(27, 54, 93);
+  pdf.setFillColor(27, 54, 93); // Navy
   pdf.rect(0, 0, pdfW, pdfH, 'F');
 
-  // Gold top bar
+  // Gold side pillars
   pdf.setFillColor(255, 215, 0);
-  pdf.rect(0, 0, pdfW, 10, 'F');
+  pdf.rect(0, 0, 15, pdfH, 'F');
+  pdf.rect(pdfW - 15, 0, 15, pdfH, 'F');
 
-  // Gold bottom bar
-  pdf.rect(0, pdfH - 10, pdfW, 10, 'F');
-
-  // Thin gold side lines
-  pdf.setFillColor(255, 215, 0);
-  pdf.rect(0, 10, 4, pdfH - 20, 'F');
-  pdf.rect(pdfW - 4, 10, 4, pdfH - 20, 'F');
-
-  // Decorative circle element (DepEd sun style)
-  pdf.setDrawColor(255, 215, 0);
-  pdf.setLineWidth(1.5);
-  pdf.circle(pdfW / 2, 80, 28);
-  pdf.setLineWidth(0.8);
-  pdf.circle(pdfW / 2, 80, 22);
-
-  // Sun rays
-  const rays = 12;
-  for (let i = 0; i < rays; i++) {
-    const angle = (i / rays) * Math.PI * 2;
-    const r1 = 25, r2 = 32;
-    pdf.line(
-      pdfW / 2 + Math.cos(angle) * r1, 80 + Math.sin(angle) * r1,
-      pdfW / 2 + Math.cos(angle) * r2, 80 + Math.sin(angle) * r2,
-    );
+  const centerX = pdfW / 2;
+  
+  if (logo) {
+    pdf.addImage(logo, 'PNG', centerX - 60, 45, 120, 120);
   }
 
-  // DepEd header text
-  pdf.setTextColor(255, 215, 0);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(13);
-  pdf.text('DEPARTMENT OF EDUCATION', pdfW / 2, 130, { align: 'center' });
-
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(11);
-  pdf.setTextColor(180, 200, 235);
-  pdf.text('Region IX – Zamboanga Peninsula', pdfW / 2, 148, { align: 'center' });
-
-  // Horizontal rule
-  pdf.setDrawColor(255, 215, 0);
-  pdf.setLineWidth(1.2);
-  pdf.line(pdfW / 2 - 120, 165, pdfW / 2 + 120, 165);
-
-  // Main title "PIR REVIEW"
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(52);
   pdf.setTextColor(255, 255, 255);
-  pdf.text('PIR REVIEW', pdfW / 2, pdfH / 2 - 15, { align: 'center' });
-
-  // Quarter badge background
-  const quarterLabel = formatQuarterLabel(quarter);
-
-  // Centre gold pill for quarter
-  const pillW = 260, pillH = 44;
-  const pillX = pdfW / 2 - pillW / 2;
-  const pillY = pdfH / 2 + 5;
-  pdf.setFillColor(255, 215, 0);
-  roundedRect(pdf, pillX, pillY, pillW, pillH, 8);
   pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(20);
+  pdf.setFontSize(28); 
+  pdf.text('DEPARTMENT OF EDUCATION', centerX, 195, { align: 'center' });
+
+  pdf.setTextColor(255, 215, 0); // Gold
+  pdf.setFontSize(20); 
+  pdf.text('Region IX – Zamboanga Peninsula', centerX, 222, { align: 'center' });
+
+  const boxW = 480, boxH = 90;
+  pdf.setFillColor(255, 215, 0);
+  roundedRect(pdf, centerX - boxW / 2, 260, boxW, boxH, 12);
+  
   pdf.setTextColor(27, 54, 93);
-  pdf.text(quarterLabel, pdfW / 2, pillY + 28, { align: 'center' });
+  pdf.setFontSize(54);
+  pdf.text('PIR REVIEW', centerX, 322, { align: 'center' });
 
-  // Horizontal rule below quarter
-  pdf.setDrawColor(255, 215, 0);
-  pdf.setLineWidth(0.8);
-  pdf.line(pdfW / 2 - 120, pdfH / 2 + 68, pdfW / 2 + 120, pdfH / 2 + 68);
+  const qName = formatQuarterLabel(quarter);
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFontSize(32);
+  pdf.text(qName, centerX, 395, { align: 'center' });
 
-  // Date and location
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(11);
-  pdf.setTextColor(200, 220, 255);
-  let infoY = pdfH / 2 + 90;
-
+  pdf.setFontSize(14);
+  pdf.setTextColor(200, 225, 255);
+  let infoY = 435;
+  
   if (date) {
-    const formatted = formatDate(date);
-    pdf.text(`📅  ${formatted}`, pdfW / 2, infoY, { align: 'center' });
-    infoY += 20;
+    const formatted = robustDate(date);
+    pdf.text(`Date: ${formatted}`, centerX, infoY, { align: 'center' });
+    infoY += 28;
   }
   if (location) {
-    pdf.text(`📍  ${location}`, pdfW / 2, infoY, { align: 'center' });
+    pdf.text(`Location: ${location}`, centerX, infoY, { align: 'center' });
   }
 
-  // Footer credit
-  pdf.setFontSize(7.5);
-  pdf.setTextColor(130, 155, 190);
-  pdf.text('Generated by Project HAYAG — DepEd Region IX Automated Monitoring Tool', pdfW / 2, pdfH - 20, { align: 'center' });
+  // 7. Footer text removed
 }
 
 // ─── Outline / Agenda Page ─────────────────────────────────────────────────────
 function drawOutlinePage(pdf: jsPDF, pdfW: number, pdfH: number, items: string[]) {
-  // White background
-  pdf.setFillColor(255, 255, 255);
-  pdf.rect(0, 0, pdfW, pdfH, 'F');
-
-  // Navy header bar
   pdf.setFillColor(27, 54, 93);
-  pdf.rect(0, 0, pdfW, 58, 'F');
-
-  // Gold accent underline
+  pdf.rect(0, 0, pdfW, 70, 'F');
   pdf.setFillColor(255, 215, 0);
-  pdf.rect(0, 58, pdfW, 4, 'F');
+  pdf.rect(0, 70, pdfW, 6, 'F');
 
-  // Header text
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(22);
   pdf.setTextColor(255, 255, 255);
-  pdf.text('AGENDA / OUTLINE', pdfW / 2, 40, { align: 'center' });
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(32);
+  pdf.text('REPORT AGENDA', pdfW / 2, 50, { align: 'center' });
 
-  // Subtitle
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(9);
-  pdf.setTextColor(255, 215, 0);
-  pdf.text('Department of Education Region IX — PIR Review', pdfW / 2, 54, { align: 'center' });
-
-  // Items
-  let y = 92;
-  const colW = (pdfW - 120) / 2;
-  const itemsPerCol = Math.ceil(items.length / 2);
-
+  let y = 120;
   items.forEach((item, index) => {
-    const col   = index < itemsPerCol ? 0 : 1;
-    const row   = index < itemsPerCol ? index : index - itemsPerCol;
-    const itemX = 60 + col * (colW + 40);
-    const itemY = y + row * 54;
-
-    // Number circle
-    pdf.setFillColor(27, 54, 93);
-    pdf.circle(itemX + 14, itemY, 12, 'F');
-
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(10);
-    pdf.setTextColor(255, 255, 255);
-    pdf.text(`${index + 1}`, itemX + 14, itemY + 3.5, { align: 'center' });
-
-    // Item text
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(12);
-    pdf.setTextColor(27, 54, 93);
-    const lines = pdf.splitTextToSize(item, colW - 35);
-    pdf.text(lines, itemX + 32, itemY + 4);
-
-    // Gold separator line
-    pdf.setDrawColor(255, 215, 0);
-    pdf.setLineWidth(0.4);
-    pdf.line(itemX + 32, itemY + 14, itemX + colW - 5, itemY + 14);
+    const lines = item.split(/\n/);
+    lines.forEach((line, li) => {
+      const isSub = line.trim().startsWith('-') || line.trim().startsWith('*');
+      if (isSub) {
+        pdf.setTextColor(80, 100, 150);
+        pdf.setFontSize(18);
+        pdf.text(`   •  ${line.trim().substring(1).trim()}`, 80, y);
+      } else {
+        pdf.setTextColor(27, 54, 93);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(22);
+        pdf.text(`${li === 0 ? index + 1 + '. ' : ''}${line.trim()}`, 60, y);
+      }
+      y += 35;
+    });
+    y += 15;
   });
 
-  // Footer
-  pdf.setFontSize(7.5);
+  pdf.setFontSize(9);
   pdf.setTextColor(160);
-  pdf.text('DepEd Region IX | Project HAYAG', MARGIN, pdfH - 15);
-  pdf.text('Page 2', pdfW - MARGIN - 30, pdfH - 15);
 }
 
-// ─── Auto-fit single-page slide ────────────────────────────────────────────────
-function drawAutoFitSlide(
-  pdf: jsPDF,
-  fullCanvas: HTMLCanvasElement,
-  pdfW: number, pdfH: number,
-  ratio: number,
-  totalCssPx: number,
-  maxPx: number,
-) {
-  const shrink    = maxPx / totalCssPx;    // < 1 — scale factor
-  const destW     = pdfW - 2 * MARGIN;
-  const destH     = totalCssPx * ratio * shrink;
-
-  pdf.addImage(
-    fullCanvas.toDataURL('image/png'),
-    'PNG', MARGIN, MARGIN, destW, destH,
-    undefined, 'FAST'
-  );
-}
-
-// ─── Multi-page slide rendering ────────────────────────────────────────────────
+// ─── Rendering Core ────────────────────────────────────────────────────────────
 async function renderSlideMultiPage(
-  pdf: jsPDF,
-  fullCanvas: HTMLCanvasElement,
-  headerCanvas: HTMLCanvasElement | null,
-  scaledHeaderHPt: number,
-  ratio: number,
-  pdfW: number, pdfH: number,
-  totalCssPx: number,
-  rowBounds: Array<{ top: number; bottom: number }>,
-  filename: string,
+  pdf: jsPDF, full: HTMLCanvasElement, 
+  hOff: number, hH: number, hPt: number, rat: number,
+  pdfW: number, pdfH: number, cssH: number,
+  rb: Array<{top:number, bottom:number}>, fn: string
 ) {
-  // Calculate how much CSS space fits per page
-  const page1MaxPx = (pdfH - 2 * MARGIN - FOOTER_H) / ratio;
-  const contMaxPx  = (pdfH - 2 * MARGIN - scaledHeaderHPt - FOOTER_H) / ratio;
-  const destW      = pdfW - 2 * MARGIN;
+  const p1Max = (pdfH - 2 * MARGIN - FOOTER_H) / rat;
+  const cMax  = (pdfH - 2 * MARGIN - hPt - FOOTER_H) / rat;
+  const dW    = pdfW - 2 * MARGIN;
 
-  // ── Page 1 of this slide (full canvas from Y=0, header is part of slide) ─────
-  let pageNum  = 1;
-  const page1SplitPx = findSplit(rowBounds, 0, page1MaxPx, totalCssPx);
+  let pageNum = 1;
+  const p1Split = findSplit(rb, 0, p1Max, cssH);
+    
+  drawPageFooter(pdf, pdfW, pdfH, MARGIN, fn, pageNum);
+  const destH1 = drawSlice(pdf, full, 0, p1Split, SCALE, MARGIN, MARGIN, rat, dW);
+  drawThickBottomBorder(pdf, MARGIN, MARGIN + destH1, dW);
 
-  drawPageFooter(pdf, pdfW, pdfH, MARGIN, filename, pageNum);
-  drawSlice(pdf, fullCanvas, 0, page1SplitPx, SCALE, MARGIN, MARGIN, ratio, destW);
-
-  let currentPx = page1SplitPx;
+  let cur = p1Split;
   pageNum++;
 
-  // ── Subsequent pages ─────────────────────────────────────────────────────────
-  while (currentPx < totalCssPx - 1) {
+  while (cur < cssH - 5) {
+    const remaining = rb.filter(r => r.top >= cur);
+    if (remaining.length === 0) break;
+
+    const split = findSplit(rb, cur, cur + cMax, cssH);
+    if (split <= cur + 1) break;
+
     pdf.addPage();
-    drawPageFooter(pdf, pdfW, pdfH, MARGIN, filename, pageNum);
+    drawPageFooter(pdf, pdfW, pdfH, MARGIN, fn, pageNum);
 
-    // Repeating header
-    if (headerCanvas) {
-      pdf.addImage(
-        headerCanvas.toDataURL('image/png'),
-        'PNG', MARGIN, MARGIN, destW, scaledHeaderHPt,
-        undefined, 'FAST'
-      );
+    if (hH > 0) {
+      drawSlice(pdf, full, hOff, hOff + hH, SCALE, MARGIN, MARGIN, rat, dW);
     }
-
-    const splitPx = findSplit(rowBounds, currentPx, currentPx + contMaxPx, totalCssPx);
-    const bodyY   = MARGIN + scaledHeaderHPt;
-
-    drawSlice(pdf, fullCanvas, currentPx, splitPx, SCALE, MARGIN, bodyY, ratio, destW);
-
-    currentPx = splitPx;
+    const destH2 = drawSlice(pdf, full, cur, split, SCALE, MARGIN, MARGIN + hPt, rat, dW);
+    drawThickBottomBorder(pdf, MARGIN, MARGIN + hPt + destH2, dW);
+    
+    cur = split;
     pageNum++;
-    if (currentPx >= totalCssPx - 1) break;
   }
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-function findSplit(
-  rowBounds: Array<{ top: number; bottom: number }>,
-  currentPx: number,
-  maxEndPx: number,
-  totalPx: number,
-): number {
-  let split = Math.min(maxEndPx, totalPx);
-  for (const rb of rowBounds) {
-    if (rb.top >= currentPx && rb.bottom <= maxEndPx) {
-      split = rb.bottom;
-    }
-  }
-  if (split <= currentPx) split = Math.min(maxEndPx, totalPx);
-  return split;
+function drawAutoFitSlide(pdf: jsPDF, can: HTMLCanvasElement, pw:number, ph:number, rat:number, ch:number, mp:number) {
+  const sh = mp / ch;
+  const destH = ch * rat * sh;
+  const dw = pw - 2*MARGIN;
+  pdf.addImage(can.toDataURL('image/png'), 'PNG', MARGIN, MARGIN, dw, destH, undefined, 'FAST');
+  drawThickBottomBorder(pdf, MARGIN, MARGIN + destH, dw);
 }
 
-function getOffsetFromAncestor(el: HTMLElement, ancestor: HTMLElement): number {
-  let offset = 0;
-  let cur: HTMLElement | null = el;
-  while (cur && cur !== ancestor) {
-    offset += cur.offsetTop;
-    cur = cur.offsetParent as HTMLElement | null;
-  }
-  return offset;
+function drawThickBottomBorder(pdf: jsPDF, x: number, y: number, w: number) {
+  pdf.setDrawColor(27, 54, 93); // DepEd Navy
+  pdf.setLineWidth(2.5);         // Thick border
+  pdf.line(x, y, x + w, y);
 }
 
-function drawSlice(
-  pdf: jsPDF,
-  canvas: HTMLCanvasElement,
-  startPx: number, endPx: number,
-  scale: number,
-  marginX: number, destY: number,
-  ratio: number, destW: number,
-) {
-  const startC = startPx * scale;
-  const sliceH = (endPx - startPx) * scale;
-  if (sliceH <= 0) return;
-
-  const slice = document.createElement('canvas');
-  slice.width  = canvas.width;
-  slice.height = sliceH;
-  const ctx = slice.getContext('2d');
-  if (!ctx) return;
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, slice.width, sliceH);
-  ctx.drawImage(canvas, 0, startC, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
-
-  const destH = (sliceH / scale) * ratio;
-  pdf.addImage(slice.toDataURL('image/png'), 'PNG', marginX, destY, destW, destH, undefined, 'FAST');
+function findSplit(rb: any[], cur: number, max: number, tot: number) {
+  let s = Math.min(max, tot);
+  for (const r of rb) if (r.top >= cur && r.bottom <= max) s = r.bottom;
+  if (s <= cur) s = Math.min(max, tot);
+  return s;
 }
 
-function drawPageFooter(
-  pdf: jsPDF, pdfW: number, pdfH: number,
-  margin: number, filename: string, pageNum: number,
-) {
-  pdf.setDrawColor(200, 200, 200);
-  pdf.setLineWidth(0.4);
-  pdf.line(margin, pdfH - margin, pdfW - margin, pdfH - margin);
-
-  pdf.setFontSize(7.5);
-  pdf.setTextColor(160);
-  pdf.text(`DepEd Region IX | Project HAYAG | ${filename}`, margin, pdfH - margin + 10);
-  pdf.text(`Page ${pageNum}`, pdfW - margin - 30, pdfH - margin + 10);
-  pdf.setTextColor(0);
+function getOffsetFromAncestor(el: HTMLElement, anc: HTMLElement) {
+  let o = 0, c: any = el;
+  while (c && c !== anc) { o += c.offsetTop; c = c.offsetParent; }
+  return o;
 }
 
-function formatQuarterLabel(q: string): string {
-  const map: Record<string, string> = {
-    Q1: 'FIRST QUARTER', Q2: 'SECOND QUARTER',
-    Q3: 'THIRD QUARTER',  Q4: 'FOURTH QUARTER',
-    'First Quarter':  'FIRST QUARTER',
-    'Second Quarter': 'SECOND QUARTER',
-    'Third Quarter':  'THIRD QUARTER',
-    'Fourth Quarter': 'FOURTH QUARTER',
-  };
-  return map[q] ?? q.toUpperCase();
+function drawSlice(pdf: jsPDF, can: HTMLCanvasElement, s: number, e: number, sc: number, mx: number, dy: number, rat: number, dw: number): number {
+  const sHz = (e - s) * sc; 
+  if (sHz <= 0) return 0;
+  const slice = document.createElement('canvas'); slice.width = can.width; slice.height = sHz;
+  const ctx = slice.getContext('2d'); if (!ctx) return 0;
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, slice.width, sHz);
+  ctx.drawImage(can, 0, s * sc, can.width, sHz, 0, 0, can.width, sHz);
+  const destH = (sHz/sc)*rat;
+  pdf.addImage(slice.toDataURL('image/png'), 'PNG', mx, dy, dw, destH, undefined, 'FAST');
+  return destH;
 }
 
-function formatDate(dateStr: string): string {
-  if (!dateStr) return '';
-  try {
-    return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-PH', {
-      year: 'numeric', month: 'long', day: 'numeric',
-    });
-  } catch {
-    return dateStr;
-  }
+function drawPageFooter(pdf: jsPDF, pw: number, ph: number, m: number, fn: string, pn: number) {
+  pdf.setDrawColor(200); pdf.setLineWidth(0.4);
+  pdf.line(m, ph - m, pw - m, ph - m);
+  pdf.setFontSize(7.5); pdf.setTextColor(160);
+  pdf.text(`Page ${pn}`, pw - m - 30, ph - m + 10);
 }
 
-/** Draw a filled rounded rectangle. jsPDF doesn't have roundedRect built-in for fills. */
-function roundedRect(pdf: jsPDF, x: number, y: number, w: number, h: number, r: number) {
-  const k = r * (4 / 3) * (Math.sqrt(2) - 1);
-  pdf.moveTo(x + r, y);
-  pdf.lineTo(x + w - r, y);
+function robustDate(ds: string) {
+  if (!ds) return '';
+  const d = new Date(ds + 'T00:00:00');
+  if (isNaN(d.getTime())) return ds; 
+  return d.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function formatQuarterLabel(q: string) {
+  const qNum = q.match(/\d/)?.[0] || '1';
+  const ordinals: Record<string, string> = { '1': '1st', '2': '2nd', '3': '3rd', '4': '4th' };
+  return `${ordinals[qNum] || qNum} Quarter`;
+}
+
+function roundedRect(pdf: any, x: number, y: number, w: number, h: number, r: number) {
+  const k = r * (4/3) * (Math.sqrt(2) - 1);
+  pdf.moveTo(x + r, y); pdf.lineTo(x + w - r, y);
   pdf.curveTo(x + w - r + k, y, x + w, y + r - k, x + w, y + r);
   pdf.lineTo(x + w, y + h - r);
   pdf.curveTo(x + w, y + h - r + k, x + w - r + k, y + h, x + w - r, y + h);
-  pdf.lineTo(x + r, y + h);
-  pdf.curveTo(x + r - k, y + h, x, y + h - r + k, x, y + h - r);
-  pdf.lineTo(x, y + r);
-  pdf.curveTo(x, y + r - k, x + r - k, y, x + r, y);
-  pdf.close();
-  pdf.fill();
+  pdf.lineTo(x + r, y + h); pdf.curveTo(x + r - k, y + h, x, y + h - r + k, x, y + h - r);
+  pdf.lineTo(x, y + r); pdf.curveTo(x, y + r - k, x + r - k, y, x + r, y);
+  pdf.close(); pdf.fill();
 }

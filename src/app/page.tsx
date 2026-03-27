@@ -7,12 +7,14 @@ import GeneratorOptions from '@/components/GeneratorOptions';
 import SlidePreview from '@/components/SlidePreview';
 import DownloadModal, { PdfFormData } from '@/components/DownloadModal';
 import { detectSheetFeatures, fetchSheetData } from './actions';
-import { buildMockReportFromCoordinates, extractRealSheetData } from '@/lib/data-engine-real';
+import { extractRealSheetData, buildMockReportFromCoordinates } from '@/lib/data-engine-real';
+import { buildDynamicConfig } from '@/lib/data-engine';
 import { mapToSlides, SlideData } from '@/lib/slide-mapper';
 import { generateHAYAGPdf } from '@/lib/pdf-generator';
+import { createGoogleSlidesReport } from './slides-action';
 import { ProgramSection } from '@/lib/data-engine';
 
-type SectionKey = 'prexc' | 'nonPrexc';
+type SectionKey = 'prexc' | 'nonPrexc' | 'master';
 
 interface SheetInfo {
   spreadsheetId: string;
@@ -30,63 +32,70 @@ export default function Home() {
   const [currentGroups, setCurrentGroups] = useState<Record<string, string[]>>({});
   const [activeSection, setActiveSection] = useState<SectionKey>('prexc');
   const [programSections, setProgramSections] = useState<ProgramSection[]>([]);
+  const [preBatchProgs, setPreBatchProgs] = useState<ProgramSection[]>([]);
+  const [nonBatchProgs, setNonBatchProgs] = useState<ProgramSection[]>([]);
 
-  // One slide array per SDO group  
   const [groupSlides, setGroupSlides] = useState<Record<string, SlideData[]>>({});
   const [selectedTemplate, setSelectedTemplate] = useState<'Formal' | 'Presentation'>('Formal');
   const [exportingGroup, setExportingGroup] = useState<string | null>(null);
 
-  // Download modal state
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [pendingDownload, setPendingDownload] = useState<{ groupName: string; quarter: string } | null>(null);
 
-  // ── Build slides for each group ──────────────────────────────────────────────
   const rebuildSlides = useCallback(
-    (programs: ProgramSection[], groups: Record<string, string[]>, quarter: string, sectionLabel: string) => {
+    (batches: { progs: ProgramSection[]; label: string }[], groups: Record<string, string[]>, quarter: string) => {
       const newGroupSlides: Record<string, SlideData[]> = {};
       for (const [groupName, sdos] of Object.entries(groups)) {
         if (sdos.length === 0) continue;
-        newGroupSlides[groupName] = mapToSlides(
-          programs,
-          { [groupName]: sdos },
-          quarter,
-          sectionLabel,
-        );
+        let groupFullSlides: SlideData[] = [];
+        for (const batch of batches) {
+          const batchSlides = mapToSlides(batch.progs, { [groupName]: sdos }, quarter, batch.label);
+          groupFullSlides = [...groupFullSlides, ...batchSlides];
+        }
+        newGroupSlides[groupName] = groupFullSlides;
       }
       setGroupSlides(newGroupSlides);
     },
     []
   );
 
-  // ── Load sheet data from API ─────────────────────────────────────────────────
   const loadSectionData = useCallback(
     async (info: SheetInfo, section: SectionKey, groups: Record<string, string[]>, quarter: string) => {
-      const tabName = section === 'prexc' ? info.foundSheets.prexc : info.foundSheets.nonPrexc;
-      const sectionLabel = section === 'prexc'
-        ? 'PREXC (PROGRAM EXPENDITURE CLASSIFICATION)'
-        : 'NON-PREXC';
-
-      if (!tabName) {
-        // Fall back to mock data for sections not found
-        const mock = buildMockReportFromCoordinates();
-        setProgramSections(mock);
-        rebuildSlides(mock, groups, quarter, sectionLabel);
-        return;
-      }
-
       setIsLoadingData(true);
       try {
-        const result = await fetchSheetData(info.spreadsheetId, tabName);
-        if (result.success && result.data.length > 0) {
-          const extracted = extractRealSheetData(result.data as unknown[][]);
-          setProgramSections(extracted);
-          rebuildSlides(extracted, groups, quarter, sectionLabel);
-        } else {
-          // Fall back to mock
-          console.warn('Sheet fetch failed, using mock data:', result.message);
+        if (section === 'master') {
+          const [resPre, resNon] = await Promise.all([
+            info.foundSheets.prexc ? fetchSheetData(info.spreadsheetId, info.foundSheets.prexc) : Promise.resolve({ success: false, data: [] }),
+            info.foundSheets.nonPrexc ? fetchSheetData(info.spreadsheetId, info.foundSheets.nonPrexc) : Promise.resolve({ success: false, data: [] })
+          ]);
+          const pBatch = resPre.success && resPre.data.length > 0 ? extractRealSheetData(resPre.data as any, buildDynamicConfig(resPre.data as any, 'PREXC')) : [];
+          const nBatch = resNon.success && resNon.data.length > 0 ? extractRealSheetData(resNon.data as any, buildDynamicConfig(resNon.data as any, info.foundSheets.nonPrexc!)) : [];
+          setPreBatchProgs(pBatch);
+          setNonBatchProgs(nBatch);
+          setProgramSections([...pBatch, ...nBatch]);
+          rebuildSlides([
+            { progs: pBatch, label: 'PREXC (PROGRAM EXPENDITURE CLASSIFICATION)' },
+            { progs: nBatch, label: 'NON-PREXC (NON-PROGRAM EXPENDITURE)' }
+          ], groups, quarter);
+          return;
+        }
+
+        const tabName = section === 'prexc' ? info.foundSheets.prexc : info.foundSheets.nonPrexc;
+        const sectionLabel = section === 'prexc' ? 'PREXC (PROGRAM EXPENDITURE CLASSIFICATION)' : 'NON-PREXC';
+        if (!tabName) {
           const mock = buildMockReportFromCoordinates();
           setProgramSections(mock);
-          rebuildSlides(mock, groups, quarter, sectionLabel);
+          rebuildSlides([{ progs: mock, label: sectionLabel }], groups, quarter);
+          return;
+        }
+        const result = await fetchSheetData(info.spreadsheetId, tabName);
+        if (result.success && result.data.length > 0) {
+          const config = buildDynamicConfig(result.data as any, tabName);
+          const extracted = extractRealSheetData(result.data as any, config);
+          if (section === 'prexc') { setPreBatchProgs(extracted); setNonBatchProgs([]); }
+          else { setPreBatchProgs([]); setNonBatchProgs(extracted); }
+          setProgramSections(extracted);
+          rebuildSlides([{ progs: extracted, label: sectionLabel }], groups, quarter);
         }
       } finally {
         setIsLoadingData(false);
@@ -95,231 +104,134 @@ export default function Home() {
     [rebuildSlides]
   );
 
-  // ── Step 1: Detect sheet ─────────────────────────────────────────────────────
   const handleBeginExtraction = async () => {
-    if (!sheetLink) {
-      alert('Please paste a Google Sheet link first!');
-      return;
-    }
+    if (!sheetLink) return;
     setIsDetecting(true);
-    setDetectionMessage('');
     try {
       const result = await detectSheetFeatures(sheetLink);
       if (result.success && result.spreadsheetId) {
-        setDetectionMessage(result.message);
         setSheetInfo({ spreadsheetId: result.spreadsheetId, foundSheets: result.foundSheets });
         setShowConfig(true);
-      } else {
-        alert(result.message);
       }
-    } catch (err) {
-      console.error(err);
-      alert('Error scanning spreadsheet.');
     } finally {
       setIsDetecting(false);
     }
   };
 
-  // ── SDO groups changed ───────────────────────────────────────────────────────
-  const handleGroupsChange = useCallback(
-    (groups: Record<string, string[]>) => {
-      setCurrentGroups(groups);
-      if (sheetInfo) {
-        loadSectionData(sheetInfo, activeSection, groups, 'Q1');
-      }
-    },
-    [sheetInfo, activeSection, loadSectionData]
-  );
+  const handleGroupsChange = useCallback((groups: Record<string, string[]>) => {
+    setCurrentGroups(groups);
+    if (sheetInfo) loadSectionData(sheetInfo, activeSection, groups, 'Q1');
+  }, [sheetInfo, activeSection, loadSectionData]);
 
-  // ── Section switched (PREXC ↔ NON-PREXC) ────────────────────────────────────
-  const handleSectionChange = useCallback(
-    (section: SectionKey) => {
-      setActiveSection(section);
-      if (sheetInfo && Object.keys(currentGroups).length > 0) {
-        loadSectionData(sheetInfo, section, currentGroups, 'Q1');
-      }
-    },
-    [sheetInfo, currentGroups, loadSectionData]
-  );
+  const handleSectionChange = useCallback((section: SectionKey) => {
+    setActiveSection(section);
+    if (sheetInfo && Object.keys(currentGroups).length > 0) loadSectionData(sheetInfo, section, currentGroups, 'Q1');
+  }, [sheetInfo, currentGroups, loadSectionData]);
 
-  // ── Generate / export ────────────────────────────────────────────────────────
-  const handleGeneratePreview = useCallback(
-    async (format: 'pdf' | 'slides', options: { quarter: string; template: string }) => {
-      setSelectedTemplate(options.template as 'Formal' | 'Presentation');
+  const handleGeneratePreview = useCallback(async (format: 'pdf' | 'slides', options: { quarter: string; template: string }) => {
+    setSelectedTemplate(options.template as any);
+    if (!sheetInfo) return;
+    if (activeSection === 'master') {
+      rebuildSlides([
+        { progs: preBatchProgs, label: 'PREXC (PROGRAM EXPENDITURE CLASSIFICATION)' },
+        { progs: nonBatchProgs, label: 'NON-PREXC (NON-PROGRAM EXPENDITURE)' }
+      ], currentGroups, options.quarter);
+    } else {
+      rebuildSlides([{ progs: programSections, label: activeSection.toUpperCase() }], currentGroups, options.quarter);
+    }
+  }, [sheetInfo, activeSection, currentGroups, programSections, preBatchProgs, nonBatchProgs, rebuildSlides]);
 
-      if (!sheetInfo) return;
+  // State for created slide links
+  const [groupLinks, setGroupLinks] = useState<Record<string, string>>({});
 
-      const sectionLabel = activeSection === 'prexc'
-        ? 'PREXC (PROGRAM EXPENDITURE CLASSIFICATION)'
-        : 'NON-PREXC';
+  const handleGroupDownload = (groupName: string, quarter: string) => {
+    setPendingDownload({ groupName, quarter });
+    setShowDownloadModal(true);
+  };
 
-      const newGroupSlides: Record<string, SlideData[]> = {};
-      for (const [groupName, sdos] of Object.entries(currentGroups)) {
-        if (sdos.length === 0) continue;
-        newGroupSlides[groupName] = mapToSlides(
-          programSections,
-          { [groupName]: sdos },
-          options.quarter,
-          sectionLabel,
-        );
-      }
-      setGroupSlides(newGroupSlides);
+  const handleGroupSlides = async (groupName: string, quarter: string) => {
+    const slides = groupSlides[groupName] || [];
+    if (slides.length === 0) return;
 
-      if (format === 'slides') {
-        alert('Google Slides export coming next!');
-      }
-      // PDF download is handled per-group by per-group buttons
-    },
-    [sheetInfo, activeSection, currentGroups, programSections]
-  );
+    setExportingGroup(groupName);
+    const title = `Q${quarter.match(/\d/)?.[0]}_HAYAG_${activeSection.toUpperCase()}_${groupName}`;
+    const result = await createGoogleSlidesReport(slides, title);
+    setExportingGroup(null);
 
-  // ── Per-group PDF download: show modal first ──────────────────────────────────────────
-  const handleGroupDownload = useCallback(
-    (groupName: string, quarter: string) => {
-      setPendingDownload({ groupName, quarter });
-      setShowDownloadModal(true);
-    },
-    []
-  );
+    if (result.success && result.link) {
+      setGroupLinks(prev => ({ ...prev, [groupName]: result.link! }));
+      alert(`Success! Created editable presentation for ${groupName}.`);
+    } else {
+      alert(`Slides Generation Failed: ${result.message}\nEnsure you have set up your Google Cloud Credentials.`);
+    }
+  };
 
-  // ── Modal confirmed: run the actual PDF generation ───────────────────────────────
-  const handleModalConfirm = useCallback(
-    async (formData: PdfFormData) => {
-      setShowDownloadModal(false);
-      if (!pendingDownload) return;
-
-      const { groupName, quarter } = pendingDownload;
-      const containerId = `pdf-hidden-${groupName.toLowerCase().replace(/\s+/g, '-')}`;
-      const sectionTag  = activeSection === 'prexc' ? 'PREXC' : 'NON-PREXC';
-
-      setExportingGroup(groupName);
-      await new Promise((r) => setTimeout(r, 400));
-      await generateHAYAGPdf(containerId, {
-        filename:     `HAYAG-${sectionTag}-${groupName}-${quarter}.pdf`,
-        quarter,
-        date:         formData.date,
-        location:     formData.location,
-        outlineItems: formData.outlineItems,
-      });
-      setExportingGroup(null);
-      setPendingDownload(null);
-    },
-    [activeSection, pendingDownload]
-  );
+  const handleModalConfirm = async (formData: PdfFormData) => {
+    setShowDownloadModal(false);
+    if (!pendingDownload) return;
+    const { groupName, quarter } = pendingDownload;
+    const containerId = `pdf-hidden-${groupName.toLowerCase().replace(/\s+/g, '-')}`;
+    setExportingGroup(groupName);
+    await new Promise(r => setTimeout(r, 400));
+    await generateHAYAGPdf(containerId, {
+      filename: `Q${quarter.match(/\d/)?.[0]}_${activeSection.toUpperCase()}_${groupName.replace(/\s+/g, '_')}.pdf`,
+      quarter,
+      date: formData.date,
+      location: formData.location,
+      outlineItems: formData.outlineItems,
+    });
+    setExportingGroup(null);
+    setPendingDownload(null);
+  };
 
   const activeGroups = Object.entries(currentGroups).filter(([, sdos]) => sdos.length > 0);
 
   return (
     <main className={styles.dashboard}>
-
-      {/* ── Download Modal (shown before PDF generation) ── */}
-      <DownloadModal
-        isOpen={showDownloadModal}
-        groupName={pendingDownload?.groupName ?? ''}
-        quarter={pendingDownload?.quarter ?? 'Q1'}
-        onConfirm={handleModalConfirm}
-        onCancel={() => { setShowDownloadModal(false); setPendingDownload(null); }}
-      />
-
-      {/* ── Hero Card ── */}
+      <DownloadModal isOpen={showDownloadModal} groupName={pendingDownload?.groupName ?? ''} quarter={pendingDownload?.quarter ?? 'Q1'}
+        onConfirm={handleModalConfirm} onCancel={() => { setShowDownloadModal(false); setPendingDownload(null); }} />
       <div className={styles.card}>
-        <div className={styles.logoArea}>
-          <div className={styles.divider}></div>
-          <span>DEPED REGION IX</span>
-          <div className={styles.divider}></div>
-        </div>
+        <div className={styles.logoArea}><div className={styles.divider}></div><span>DEPED REGION IX</span><div className={styles.divider}></div></div>
         <h1 className={styles.title}>Project HAYAG</h1>
         <p className={styles.subtitle}>Automated SDO Monitoring & Presentation Generator</p>
-
-        <div className={styles.inputGroup}>
-          <input
-            type="text"
-            className={styles.inputField}
-            placeholder="Paste Google Sheet Link..."
-            value={sheetLink}
-            onChange={(e) => setSheetLink(e.target.value)}
-          />
-        </div>
-
-        <button
-          className={styles.actionButton}
-          onClick={handleBeginExtraction}
-          disabled={isDetecting}
-        >
-          {isDetecting ? 'Scanning Sheets...' : 'Begin Extraction'}
-        </button>
-
-        {detectionMessage && (
-          <div style={{
-            marginTop: '1.5rem', padding: '1rem',
-            background: '#F0FDF4', color: '#166534',
-            borderRadius: '8px', fontSize: '0.8rem',
-          }}>
-            {detectionMessage}
-          </div>
-        )}
+        <div className={styles.inputGroup}><input type="text" className={styles.inputField} placeholder="Paste Google Sheet Link..." value={sheetLink} onChange={(e) => setSheetLink(e.target.value)} /></div>
+        <button className={styles.actionButton} onClick={handleBeginExtraction} disabled={isDetecting}>{isDetecting ? 'Scanning Sheets...' : 'Begin Extraction'}</button>
       </div>
-
-      {/* ── Configuration & Preview ── */}
       {showConfig && sheetInfo && (
         <>
           <SdoGrouping onGroupsChange={handleGroupsChange} />
-
-          <GeneratorOptions
-            availableSections={sheetInfo.foundSheets}
-            onSectionChange={handleSectionChange}
-            onGenerate={handleGeneratePreview}
-          />
-
-          {/* ── Per-group preview + download buttons ── */}
+          <GeneratorOptions availableSections={sheetInfo.foundSheets} onSectionChange={handleSectionChange} onGenerate={handleGeneratePreview} />
           {activeGroups.length > 0 && (
             <div style={{ marginTop: '3rem', width: '100%', maxWidth: '1200px' }}>
-              <h3 style={{
-                marginBottom: '1.5rem', color: '#1B365D',
-                textTransform: 'uppercase', fontSize: '0.8rem', letterSpacing: '0.05em',
-              }}>
-                {isLoadingData
-                  ? '⏳ Loading live sheet data...'
-                  : '👀 Comparison Table Preview — One Card Per Group'}
+              <h3 style={{ marginBottom: '1.5rem', color: '#1B365D', textTransform: 'uppercase', fontSize: '0.8rem', letterSpacing: '0.05em' }}>
+                {isLoadingData ? '⏳ Loading live sheet data...' : '👀 Comparison Table Preview'}
               </h3>
-
               {activeGroups.map(([groupName]) => {
                 const slides = groupSlides[groupName] ?? [];
                 const containerId = `pdf-hidden-${groupName.toLowerCase().replace(/\s+/g, '-')}`;
                 const isExporting = exportingGroup === groupName;
-
                 return (
                   <div key={groupName} className={styles.groupBlock}>
-                    {/* Group header + download button */}
                     <div className={styles.groupHeader}>
-                      <span className={styles.groupTitle}>
-                        {groupName}
-                        <span className={styles.groupCount}>
-                          {currentGroups[groupName].length} SDOs
-                        </span>
-                      </span>
-                      <button
-                        className={`${styles.groupDownloadBtn} ${isExporting ? styles.groupDownloadBusy : ''}`}
-                        onClick={() => handleGroupDownload(groupName, 'Q1')}
-                        disabled={isExporting || slides.length === 0}
-                      >
-                        {isExporting ? '⏳ Generating...' : `⬇ Download ${groupName} PDF`}
-                      </button>
+                      <span className={styles.groupTitle}>{groupName}<span className={styles.groupCount}>{currentGroups[groupName].length} SDOs</span></span>
+                      <div className={styles.groupActions}>
+                        {groupLinks[groupName] && (
+                          <a href={groupLinks[groupName]} target="_blank" rel="noopener noreferrer" className={styles.openSlidesLink}>
+                            🔗 Open Slides
+                          </a>
+                        )}
+                        <button className={`${styles.groupDownloadBtn} ${isExporting ? styles.groupDownloadBusy : ''}`}
+                          onClick={() => handleGroupDownload(groupName, 'Q1')} disabled={isExporting || slides.length === 0}>
+                          {isExporting ? '⏳ Generating...' : `⬇ PDF Report`}
+                        </button>
+                        <button className={`${styles.groupSlidesBtn} ${isExporting ? styles.groupDownloadBusy : ''}`}
+                          onClick={() => handleGroupSlides(groupName, 'Q1')} disabled={isExporting || slides.length === 0}>
+                          {isExporting ? '⏳ Creating...' : `🎭 Create Slides`}
+                        </button>
+                      </div>
                     </div>
-
-                    {/* Visible preview (zoomed) */}
-                    <div className={styles.previewContainer}>
-                      {slides.map((slide, i) => (
-                        <SlidePreview key={i} slide={slide} template={selectedTemplate} />
-                      ))}
-                    </div>
-
-                    {/* Hidden full-size container for PDF capture */}
-                    <div id={containerId} className={styles.pdfHiddenContainer}>
-                      {slides.map((slide, i) => (
-                        <SlidePreview key={i} slide={slide} template={selectedTemplate} />
-                      ))}
-                    </div>
+                    <div className={styles.previewContainer}>{slides.map((s, i) => <SlidePreview key={i} slide={s} template={selectedTemplate} />)}</div>
+                    <div id={containerId} className={styles.pdfHiddenContainer}>{slides.map((s, i) => <SlidePreview key={i} slide={s} template={selectedTemplate} />)}</div>
                   </div>
                 );
               })}

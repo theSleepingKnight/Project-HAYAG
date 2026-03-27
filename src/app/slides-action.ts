@@ -1,87 +1,140 @@
 'use server'
 
 import { google } from 'googleapis';
+import fs from 'fs';
+import path from 'path';
 import { SlideData } from '@/lib/slide-mapper';
 
 /**
  * Google Slides Export Action for Project HAYAG
- * Handles the creation of a Cloud-based, editable presentation.
+ * Creates a real, editable presentation in Google Drive.
  */
 export async function createGoogleSlidesReport(slidesData: SlideData[], title: string) {
   try {
-    // 1. AUTHENTICATION (Placeholder for service account/OAuth)
-    // NOTE: In production, requires JSON credentials in environment or file.
-    /** 
-    const auth = new google.auth.GoogleAuth({
-      scopes: ['https://www.googleapis.com/auth/presentations', 'https://www.googleapis.com/auth/drive'],
-    });
+    // 1. AUTHENTICATION (Explicit Load for Windows Paths)
+    const keyPath = path.join(process.cwd(), 'config', 'project-hayag-6857969411a7.json');
+    const keyFile = JSON.parse(fs.readFileSync(keyPath, 'utf8'));
+
+    const auth = new google.auth.JWT(
+      keyFile.client_email,
+      undefined,
+      keyFile.private_key,
+      ['https://www.googleapis.com/auth/presentations', 'https://www.googleapis.com/auth/drive']
+    );
+
     const slides = google.slides({ version: 'v1', auth });
-    **/
+    const drive = google.drive({ version: 'v3', auth });
 
-    console.log(`🚀 [CLOUD ACTION] Creating Google Slides: ${title}`);
-    console.log(`📊 Processing ${slidesData.length} mapped slides...`);
+    // 2. CREATE PRESENTATION
+    const presentation = await slides.presentations.create({
+      requestBody: { title }
+    });
+    const presentationId = presentation.data.presentationId!;
 
-    // 2. MOCK CLOUD CREATION (Showing the logic of batchUpdate)
+    console.log(`🚀 Created Presentation ID: ${presentationId}`);
+
+    // 3. GENERATE BATCH REQUESTS
     const requests: any[] = [];
     
+    // Skip the first default slide or use it as a title slide
+    // Let's create new slides for each data item
     slidesData.forEach((slide, index) => {
-      const slideId = `slide_${index}`;
-
-      // A. Create a New Slide
+      const slideId = `slide_custom_${index}`;
+      
+      // Create Slide
       requests.push({
         createSlide: {
           objectId: slideId,
-          insertionIndex: index,
+          insertionIndex: index + 1,
           slideLayoutReference: { predefinedLayout: 'BLANK' }
         }
       });
 
       if (slide.type === 'divider') {
-        // B. Add Section Divider Logic (Navy Blue Background + Arial 22pt Text)
+        // Add Section Header
+        const shapeId = `shape_div_${index}`;
         requests.push({
           createShape: {
-            objectId: `div_${index}`,
+            objectId: shapeId,
             shapeType: 'RECTANGLE',
-            elementProperties: { pageObjectId: slideId }
+            elementProperties: {
+              pageObjectId: slideId,
+              size: { width: { magnitude: 6000000, unit: 'EMU' }, height: { magnitude: 1000000, unit: 'EMU' } },
+              transform: { scaleX: 1, scaleY: 1, translateX: 500000, translateY: 1500000, unit: 'EMU' }
+            }
           }
         }, {
           updateShapeProperties: {
-            objectId: `div_${index}`,
-            shapeProperties: { shapeBackgroundFill: { solidFill: { color: { rgbColor: { blue: 0.36, green: 0.21, red: 0.11 } } } } }, // DepEd Navy
+            objectId: shapeId,
+            shapeProperties: {
+              shapeBackgroundFill: { solidFill: { color: { rgbColor: { red: 0.11, green: 0.21, blue: 0.36 } } } }
+            },
             fields: 'shapeBackgroundFill.solidFill.color'
           }
         }, {
           insertText: {
-            objectId: `div_${index}`,
-            text: slide.sectionTitle ?? 'Section',
+            objectId: shapeId,
+            text: slide.sectionTitle || 'Section Title',
             insertionIndex: 0
           }
         });
       } else {
-        // C. Add Comparison Table Logic
-        // This is where we create a Table with columns for indicators, targets, SDOs, and remarks.
+        // Create Comparison Table
+        const tableId = `table_${index}`;
+        const numSdos = slide.sdosInThisSlide.length;
+        const numRows = 2 + slide.programSections.reduce((acc, p) => acc + p.groups.reduce((acc2, g) => acc2 + g.rows.length, 0), 0);
+        
         requests.push({
           createTable: {
-            objectId: `table_${index}`,
+            objectId: tableId,
             elementProperties: { pageObjectId: slideId },
-            rows: 2, // Headers + 1 Data Row
-            columns: 2 + slide.sdosInThisSlide.length + 1
+            rows: Math.min(numRows, 20), // Cap for safety in this version
+            columns: 3 + numSdos
           }
+        });
+        
+        // Headers (Simplified mapping for now)
+        requests.push({
+          insertText: { objectId: tableId, cellLocation: { rowIndex: 0, columnIndex: 0 }, text: "INDICATOR" }
         });
       }
     });
 
-    // Final API call would occur here:
-    // const response = await slides.presentations.batchUpdate({ presentationId, requestBody: { requests }});
+    // 4. EXECUTE BATCH UPDATE
+    if (requests.length > 0) {
+      await slides.presentations.batchUpdate({
+        presentationId,
+        requestBody: { requests }
+      });
+    }
+
+    // 5. SET PERMISSIONS (Make it accessible via link)
+    // Note: Depends on organization settings. This makes it readable by anyone with link.
+    try {
+      await drive.permissions.create({
+        fileId: presentationId,
+        requestBody: { role: 'reader', type: 'anyone' }
+      });
+    } catch (e) {
+      console.warn("Could not set public permissions. Slide will be private to the service account.");
+    }
 
     return { 
       success: true, 
-      message: `Success! Created editable presentation with ${slidesData.length} slides in your Google Drive.`,
-      link: "https://docs.google.com/presentation/d/your-presentation-id/edit"
+      message: "Presentation generated successfully!",
+      link: `https://docs.google.com/presentation/d/${presentationId}/edit`
     };
 
-  } catch (error) {
-    console.error("Slides Export Error:", error);
-    return { success: false, message: "Failed to create Google Slides. Check API credentials." };
+  } catch (error: any) {
+    // EXTRA LOGGING: Reveal the exact nested error from Google
+    if (error.response && error.response.data && error.response.data.error) {
+      console.error("🔴 GOOGLE API ERROR DETAILS:", JSON.stringify(error.response.data.error, null, 2));
+    } else {
+      console.error("Slides Export Error:", error);
+    }
+    return { 
+      success: false, 
+      message: error.message || "Failed to create Google Slides. Check API configuration." 
+    };
   }
 }
