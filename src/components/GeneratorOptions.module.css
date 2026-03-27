@@ -46,6 +46,14 @@
   color: var(--deped-navy);
 }
 
+.optionBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: var(--slate-100);
+  border-color: var(--slate-200);
+  color: var(--slate-400);
+}
+
 .generateArea {
   display: flex;
   gap: 1rem;

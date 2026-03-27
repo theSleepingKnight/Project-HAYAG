@@ -11,7 +11,7 @@ import { extractRealSheetData, buildMockReportFromCoordinates } from '@/lib/data
 import { buildDynamicConfig } from '@/lib/data-engine';
 import { mapToSlides, SlideData } from '@/lib/slide-mapper';
 import { generateHAYAGPdf } from '@/lib/pdf-generator';
-import { createGoogleSlidesReport } from './slides-action';
+import { generateHAYAGPptx } from '@/lib/pptx-generator';
 import { ProgramSection } from '@/lib/data-engine';
 
 type SectionKey = 'prexc' | 'nonPrexc' | 'master';
@@ -26,21 +26,16 @@ export default function Home() {
   const [isDetecting, setIsDetecting] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
-  const [detectionMessage, setDetectionMessage] = useState('');
   const [sheetInfo, setSheetInfo] = useState<SheetInfo | null>(null);
 
   const [currentGroups, setCurrentGroups] = useState<Record<string, string[]>>({});
   const [activeSection, setActiveSection] = useState<SectionKey>('prexc');
-  const [programSections, setProgramSections] = useState<ProgramSection[]>([]);
-  const [preBatchProgs, setPreBatchProgs] = useState<ProgramSection[]>([]);
-  const [nonBatchProgs, setNonBatchProgs] = useState<ProgramSection[]>([]);
 
   const [groupSlides, setGroupSlides] = useState<Record<string, SlideData[]>>({});
-  const [selectedTemplate, setSelectedTemplate] = useState<'Formal' | 'Presentation'>('Formal');
   const [exportingGroup, setExportingGroup] = useState<string | null>(null);
 
   const [showDownloadModal, setShowDownloadModal] = useState(false);
-  const [pendingDownload, setPendingDownload] = useState<{ groupName: string; quarter: string } | null>(null);
+  const [pendingDownload, setPendingDownload] = useState<{ groupName: string; quarter: string; format: 'pdf' | 'pptx' } | null>(null);
 
   const rebuildSlides = useCallback(
     (batches: { progs: ProgramSection[]; label: string }[], groups: Record<string, string[]>, quarter: string) => {
@@ -70,9 +65,7 @@ export default function Home() {
           ]);
           const pBatch = resPre.success && resPre.data.length > 0 ? extractRealSheetData(resPre.data as any, buildDynamicConfig(resPre.data as any, 'PREXC')) : [];
           const nBatch = resNon.success && resNon.data.length > 0 ? extractRealSheetData(resNon.data as any, buildDynamicConfig(resNon.data as any, info.foundSheets.nonPrexc!)) : [];
-          setPreBatchProgs(pBatch);
-          setNonBatchProgs(nBatch);
-          setProgramSections([...pBatch, ...nBatch]);
+
           rebuildSlides([
             { progs: pBatch, label: 'PREXC (PROGRAM EXPENDITURE CLASSIFICATION)' },
             { progs: nBatch, label: 'NON-PREXC (NON-PROGRAM EXPENDITURE)' }
@@ -84,7 +77,6 @@ export default function Home() {
         const sectionLabel = section === 'prexc' ? 'PREXC (PROGRAM EXPENDITURE CLASSIFICATION)' : 'NON-PREXC';
         if (!tabName) {
           const mock = buildMockReportFromCoordinates();
-          setProgramSections(mock);
           rebuildSlides([{ progs: mock, label: sectionLabel }], groups, quarter);
           return;
         }
@@ -92,9 +84,6 @@ export default function Home() {
         if (result.success && result.data.length > 0) {
           const config = buildDynamicConfig(result.data as any, tabName);
           const extracted = extractRealSheetData(result.data as any, config);
-          if (section === 'prexc') { setPreBatchProgs(extracted); setNonBatchProgs([]); }
-          else { setPreBatchProgs([]); setNonBatchProgs(extracted); }
-          setProgramSections(extracted);
           rebuildSlides([{ progs: extracted, label: sectionLabel }], groups, quarter);
         }
       } finally {
@@ -128,58 +117,37 @@ export default function Home() {
     if (sheetInfo && Object.keys(currentGroups).length > 0) loadSectionData(sheetInfo, section, currentGroups, 'Q1');
   }, [sheetInfo, currentGroups, loadSectionData]);
 
-  const handleGeneratePreview = useCallback(async (format: 'pdf' | 'slides', options: { quarter: string; template: string }) => {
-    setSelectedTemplate(options.template as any);
-    if (!sheetInfo) return;
-    if (activeSection === 'master') {
-      rebuildSlides([
-        { progs: preBatchProgs, label: 'PREXC (PROGRAM EXPENDITURE CLASSIFICATION)' },
-        { progs: nonBatchProgs, label: 'NON-PREXC (NON-PROGRAM EXPENDITURE)' }
-      ], currentGroups, options.quarter);
-    } else {
-      rebuildSlides([{ progs: programSections, label: activeSection.toUpperCase() }], currentGroups, options.quarter);
-    }
-  }, [sheetInfo, activeSection, currentGroups, programSections, preBatchProgs, nonBatchProgs, rebuildSlides]);
 
-  // State for created slide links
-  const [groupLinks, setGroupLinks] = useState<Record<string, string>>({});
-
-  const handleGroupDownload = (groupName: string, quarter: string) => {
-    setPendingDownload({ groupName, quarter });
+  const handleGroupDownload = (groupName: string, quarter: string, format: 'pdf' | 'pptx' = 'pdf') => {
+    setPendingDownload({ groupName, quarter, format });
     setShowDownloadModal(true);
-  };
-
-  const handleGroupSlides = async (groupName: string, quarter: string) => {
-    const slides = groupSlides[groupName] || [];
-    if (slides.length === 0) return;
-
-    setExportingGroup(groupName);
-    const title = `Q${quarter.match(/\d/)?.[0]}_HAYAG_${activeSection.toUpperCase()}_${groupName}`;
-    const result = await createGoogleSlidesReport(slides, title);
-    setExportingGroup(null);
-
-    if (result.success && result.link) {
-      setGroupLinks(prev => ({ ...prev, [groupName]: result.link! }));
-      alert(`Success! Created editable presentation for ${groupName}.`);
-    } else {
-      alert(`Slides Generation Failed: ${result.message}\nEnsure you have set up your Google Cloud Credentials.`);
-    }
   };
 
   const handleModalConfirm = async (formData: PdfFormData) => {
     setShowDownloadModal(false);
     if (!pendingDownload) return;
-    const { groupName, quarter } = pendingDownload;
+    const { groupName, quarter, format } = pendingDownload;
     const containerId = `pdf-hidden-${groupName.toLowerCase().replace(/\s+/g, '-')}`;
     setExportingGroup(groupName);
+    
+    // Brief delay to ensure modal is closed and UI is stable
     await new Promise(r => setTimeout(r, 400));
-    await generateHAYAGPdf(containerId, {
-      filename: `Q${quarter.match(/\d/)?.[0]}_${activeSection.toUpperCase()}_${groupName.replace(/\s+/g, '_')}.pdf`,
+    
+    const options = {
+      filename: `Q${quarter.match(/\d/)?.[0]}_${activeSection.toUpperCase()}_${groupName.replace(/\s+/g, '_')}.${format}`,
       quarter,
       date: formData.date,
       location: formData.location,
       outlineItems: formData.outlineItems,
-    });
+    };
+
+    if (format === 'pdf') {
+      await generateHAYAGPdf(containerId, options);
+    } else {
+      const slides = groupSlides[groupName] || [];
+      await generateHAYAGPptx(slides, options);
+    }
+    
     setExportingGroup(null);
     setPendingDownload(null);
   };
@@ -200,7 +168,7 @@ export default function Home() {
       {showConfig && sheetInfo && (
         <>
           <SdoGrouping onGroupsChange={handleGroupsChange} />
-          <GeneratorOptions availableSections={sheetInfo.foundSheets} onSectionChange={handleSectionChange} onGenerate={handleGeneratePreview} />
+          <GeneratorOptions availableSections={sheetInfo.foundSheets} onSectionChange={handleSectionChange} />
           {activeGroups.length > 0 && (
             <div style={{ marginTop: '3rem', width: '100%', maxWidth: '1200px' }}>
               <h3 style={{ marginBottom: '1.5rem', color: '#1B365D', textTransform: 'uppercase', fontSize: '0.8rem', letterSpacing: '0.05em' }}>
@@ -215,23 +183,18 @@ export default function Home() {
                     <div className={styles.groupHeader}>
                       <span className={styles.groupTitle}>{groupName}<span className={styles.groupCount}>{currentGroups[groupName].length} SDOs</span></span>
                       <div className={styles.groupActions}>
-                        {groupLinks[groupName] && (
-                          <a href={groupLinks[groupName]} target="_blank" rel="noopener noreferrer" className={styles.openSlidesLink}>
-                            🔗 Open Slides
-                          </a>
-                        )}
                         <button className={`${styles.groupDownloadBtn} ${isExporting ? styles.groupDownloadBusy : ''}`}
-                          onClick={() => handleGroupDownload(groupName, 'Q1')} disabled={isExporting || slides.length === 0}>
+                          onClick={() => handleGroupDownload(groupName, 'Q1', 'pdf')} disabled={isExporting || slides.length === 0}>
                           {isExporting ? '⏳ Generating...' : `⬇ PDF Report`}
                         </button>
-                        <button className={`${styles.groupSlidesBtn} ${isExporting ? styles.groupDownloadBusy : ''}`}
-                          onClick={() => handleGroupSlides(groupName, 'Q1')} disabled={isExporting || slides.length === 0}>
-                          {isExporting ? '⏳ Creating...' : `🎭 Create Slides`}
+                        <button className={`${styles.groupPptxBtn} ${isExporting ? styles.groupDownloadBusy : ''}`}
+                          onClick={() => handleGroupDownload(groupName, 'Q1', 'pptx')} disabled={isExporting || slides.length === 0}>
+                          {isExporting ? '⏳ Creating...' : `⬇ PPTX Slides`}
                         </button>
                       </div>
                     </div>
-                    <div className={styles.previewContainer}>{slides.map((s, i) => <SlidePreview key={i} slide={s} template={selectedTemplate} />)}</div>
-                    <div id={containerId} className={styles.pdfHiddenContainer}>{slides.map((s, i) => <SlidePreview key={i} slide={s} template={selectedTemplate} />)}</div>
+                    <div className={styles.previewContainer}>{slides.map((s, i) => <SlidePreview key={i} slide={s} />)}</div>
+                    <div id={containerId} className={styles.pdfHiddenContainer}>{slides.map((s, i) => <SlidePreview key={i} slide={s} />)}</div>
                   </div>
                 );
               })}

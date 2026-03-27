@@ -194,7 +194,7 @@
   gap: 0.75rem;
 }
 
-.groupDownloadBtn, .groupSlidesBtn {
+.groupDownloadBtn, .groupPptxBtn {
   padding: 0.5rem 1.15rem;
   border: none;
   border-radius: 6px;
@@ -213,7 +213,7 @@
   color: #1B365D;
 }
 
-.groupSlidesBtn {
+.groupPptxBtn {
   background: rgba(255, 255, 255, 0.1);
   color: white;
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -225,37 +225,18 @@
   box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 
-.groupSlidesBtn:hover:not(:disabled) {
+.groupPptxBtn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.2);
   border-color: white;
   transform: translateY(-1px);
   box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 
-.groupDownloadBtn:disabled, .groupSlidesBtn:disabled {
+.groupDownloadBtn:disabled, .groupPptxBtn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
 .groupDownloadBusy {
   animation: pulse 1s ease-in-out infinite;
-}
-
-.openSlidesLink {
-  color: #FFD700;
-  text-decoration: none;
-  font-size: 0.75rem;
-  font-weight: 700;
-  padding: 0.5rem 1rem;
-  border: 1px solid rgba(255, 215, 0, 0.4);
-  border-radius: 6px;
-  background: rgba(255, 215, 0, 0.1);
-  transition: all 0.2s ease;
-  white-space: nowrap;
-}
-
-.openSlidesLink:hover {
-  background: #FFD700;
-  color: #1B365D;
-  transform: translateY(-1px);
 }

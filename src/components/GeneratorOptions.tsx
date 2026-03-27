@@ -6,27 +6,20 @@ import styles from './GeneratorOptions.module.css';
 interface GeneratorOptionsProps {
   availableSections: { prexc: string | null; nonPrexc: string | null };
   onSectionChange: (section: 'prexc' | 'nonPrexc' | 'master') => void;
-  onGenerate: (format: 'pdf' | 'slides', options: { quarter: string; template: string }) => void;
 }
 
 export default function GeneratorOptions({
   availableSections,
   onSectionChange,
-  onGenerate,
 }: GeneratorOptionsProps) {
   const [activeSection, setActiveSection] = useState<'prexc' | 'nonPrexc' | 'master'>(
     availableSections.prexc ? 'prexc' : 'nonPrexc'
   );
   const [activeQuarter, setActiveQuarter] = useState('Q1');
-  const [activeTemplate, setActiveTemplate] = useState('Formal');
 
   const handleSectionSwitch = (section: 'prexc' | 'nonPrexc' | 'master') => {
     setActiveSection(section);
     onSectionChange(section);
-  };
-
-  const handleExport = (format: 'pdf' | 'slides') => {
-    onGenerate(format, { quarter: activeQuarter, template: activeTemplate });
   };
 
   return (
@@ -73,15 +66,20 @@ export default function GeneratorOptions({
       <div className={styles.section}>
         <span className={styles.label}>Select Monitoring Quarter</span>
         <div className={styles.buttonGrid}>
-          {['Q1', 'Q2', 'Q3', 'Q4'].map((q) => (
-            <button
-              key={q}
-              className={`${styles.optionBtn} ${activeQuarter === q ? styles.active : ''}`}
-              onClick={() => setActiveQuarter(q)}
-            >
-              {q === 'Q1' ? 'First' : q === 'Q2' ? 'Second' : q === 'Q3' ? 'Third' : 'Fourth'} Quarter
-            </button>
-          ))}
+          {['Q1', 'Q2', 'Q3', 'Q4'].map((q) => {
+            const isQ1 = q === 'Q1';
+            return (
+              <button
+                key={q}
+                className={`${styles.optionBtn} ${activeQuarter === q ? styles.active : ''}`}
+                onClick={() => isQ1 && setActiveQuarter(q)}
+                disabled={!isQ1}
+              >
+                <div>{q === 'Q1' ? 'First' : q === 'Q2' ? 'Second' : q === 'Q3' ? 'Third' : 'Fourth'} Quarter</div>
+                {!isQ1 && <div style={{ fontSize: '0.6rem', color: '#94a3b8', fontStyle: 'italic', marginTop: '4px' }}>Unavailable</div>}
+              </button>
+            );
+          })}
         </div>
       </div>
 
