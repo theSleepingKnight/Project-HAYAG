@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
       
       // Solve the "node:xx" import problem by stripping the "node:" prefix
       config.plugins.push(
-        new webpack.NormalModuleReplacementPlugin(/^node:/, (resource: any) => {
+        new webpack.NormalModuleReplacementPlugin(/^node:/, (resource: { request: string }) => {
           resource.request = resource.request.replace(/^node:/, "");
         })
       );
@@ -22,6 +22,7 @@ const nextConfig: NextConfig = {
 
     return config;
   },
+  turbopack: {}
 };
 
 export default nextConfig;
