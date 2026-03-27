@@ -1,0 +1,223 @@
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  background: linear-gradient(135deg, var(--slate-50) 0%, #e2e8f0 100%);
+}
+
+.card {
+  width: 100%;
+  max-width: 600px;
+  background: var(--deped-white);
+  padding: 3rem;
+  border-radius: var(--border-radius);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  border-top: 5px solid var(--deped-navy);
+  text-align: center;
+}
+
+.title {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  color: var(--slate-400);
+  margin-bottom: 2.5rem;
+  font-size: 1.1rem;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  text-align: left;
+  margin-bottom: 2rem;
+}
+
+.inputLabel {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--deped-navy);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.inputField {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  border: 2px solid var(--slate-200);
+  border-radius: var(--border-radius);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.inputField:focus {
+  outline: none;
+  border-color: var(--deped-navy);
+  box-shadow: 0 0 0 4px rgba(27, 54, 93, 0.1);
+}
+
+.actionButton {
+  width: 100%;
+  padding: 1rem;
+  background-color: var(--deped-navy);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.actionButton:hover {
+  background-color: #2a4a7a;
+  transform: translateY(-2px);
+}
+
+.actionButton:active {
+  transform: translateY(0);
+}
+
+.logoArea {
+  margin-bottom: 2rem;
+  font-weight: 800;
+  color: var(--deped-gold);
+  font-family: var(--font-headings);
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.divider {
+  height: 2px;
+  width: 50px;
+  background-color: var(--deped-gold);
+}
+
+.actionButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.previewContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  align-items: center;
+  background: var(--slate-100);
+  padding: 2rem;
+  border-radius: var(--border-radius);
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 900px;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.previewContainer > * {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  zoom: 0.75;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* Hidden off-screen container for clean PDF capture — no zoom, no shadows.
+   1122px = exact A4 landscape at 96 DPI, ensuring 1:1 PDF rendering without distortion. */
+.pdfHiddenContainer {
+  position: fixed;
+  top: -99999px;
+  left: -99999px;
+  width: 1122px;          /* A4 landscape: 841.89pt × (96/72) = 1122.52px */
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ─── Per-Group Card Block ──────────────────────────────────────────────────── */
+.groupBlock {
+  width: 100%;
+  margin-bottom: 3rem;
+  background: white;
+  border-radius: var(--border-radius);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--slate-200);
+  overflow: hidden;
+}
+
+.groupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  background: linear-gradient(135deg, #1B365D 0%, #2a4a7a 100%);
+  border-bottom: 3px solid #FFD700;
+}
+
+.groupTitle {
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.groupCount {
+  font-size: 0.7rem;
+  font-weight: 500;
+  background: rgba(255, 215, 0, 0.2);
+  color: #FFD700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.groupDownloadBtn {
+  padding: 0.55rem 1.25rem;
+  background: #FFD700;
+  color: #1B365D;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.groupDownloadBtn:hover:not(:disabled) {
+  background: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.groupDownloadBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.groupDownloadBusy {
+  background: rgba(255,215,0,0.4);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}

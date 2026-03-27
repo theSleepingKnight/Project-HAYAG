@@ -1,0 +1,97 @@
+.container {
+  margin-top: 2.5rem;
+  width: 100%;
+  max-width: 900px;
+  background: white;
+  padding: 2rem;
+  border-radius: var(--border-radius);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--slate-200);
+}
+
+.headerArea {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--slate-100);
+}
+
+.title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--deped-navy);
+}
+
+.presets {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.presetBtn {
+  padding: 0.5rem 1rem;
+  background-color: var(--slate-50);
+  border: 1px solid var(--slate-200);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.presetBtn:hover {
+  border-color: var(--deped-gold);
+  color: var(--deped-gold);
+}
+
+.layout {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.groupZone {
+  flex: 1;
+  min-width: 250px;
+  background: var(--slate-50);
+  border: 2px dashed var(--slate-200);
+  border-radius: var(--border-radius);
+  padding: 1.25rem;
+  min-height: 200px;
+}
+
+.groupLabel {
+  font-family: var(--font-headings);
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  color: var(--deped-navy);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid var(--deped-gold);
+  display: inline-block;
+}
+
+.sdoList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sdoCard {
+  background: white;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  border: 1px solid var(--slate-200);
+  font-weight: 500;
+  font-size: 0.95rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.dragHandle {
+  color: var(--slate-400);
+  cursor: grab;
+}

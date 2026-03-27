@@ -1,0 +1,67 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Zilla+Slab:wght@400;500;600;700&display=swap');
+
+:root {
+  /* DepEd Region IX Primary Brand Colors */
+  --deped-navy: #1B365D;
+  --deped-gold: #C5A059;
+  --deped-white: #FFFFFF;
+  
+  /* Status Colors */
+  --status-complete: #059669; /* Emerald Green */
+  --status-met: #D97706;      /* Amber */
+  --status-under: #DC2626;    /* Crimson Red */
+  
+  /* Neutral Color Palette */
+  --slate-50: #F8FAFC;
+  --slate-100: #F1F5F9;
+  --slate-200: #E2E8F0;
+  --slate-400: #64748B;
+  --slate-900: #0F172A;
+
+  /* Typography */
+  --font-headings: 'Zilla Slab', serif;
+  --font-body: 'Inter', sans-serif;
+  
+  /* Layout & Spacing */
+  --page-max-width: 1200px;
+  --border-radius: 8px;
+  --sidebar-width: 280px;
+}
+
+/* Base Styles */
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  font-family: var(--font-body);
+  color: var(--slate-900);
+  background-color: var(--slate-50);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-headings);
+  color: var(--deped-navy);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Helper Utilities */
+.glassmorphism {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.official-shadow {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
