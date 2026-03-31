@@ -113,13 +113,21 @@ export function buildDynamicConfig(sheetData: unknown[][], tabName: string, quar
     }
   }
 
-  // 3. Fallback/Target checks in header rows
+  // 3. Robust Target Scanning in header rows (Look for keywords instead of exact match)
   for (let r = 0; r < Math.min(sheetData.length, 6); r++) {
     const row = sheetData[r] || [];
     for (let c = 0; c < row.length; c++) {
-      const val = (row[c] ?? '').toString().trim().toUpperCase();
-      if (val === 'CO TARGET') config.coTargetCol = c;
-      if (val === 'RO TARGET') config.roTargetCol = c;
+      const v = (row[c] ?? '').toString().trim().toUpperCase();
+      
+      // Look for "TARGET" + "(CO)" or "(RO)" in any combination
+      if (v.includes('TARGET')) {
+        if (v.includes('(CO)') || v === 'CO TARGET' || (v.includes('CO') && !v.includes('SDO'))) {
+           config.coTargetCol = c;
+        }
+        if (v.includes('(RO)') || v === 'RO TARGET' || (v.includes('RO') && !v.includes('SDO'))) {
+           config.roTargetCol = c;
+        }
+      }
     }
   }
 
