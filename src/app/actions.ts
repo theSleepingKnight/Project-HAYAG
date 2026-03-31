@@ -29,7 +29,13 @@ async function getSheetsClient() {
   }
 
   // Ensure the environment variable newlines are decoded correctly
-  const privateKey = rawKey.replace(/\\n/g, '\n');
+  let privateKey = rawKey.replace(/\\n/g, '\n');
+  
+  // Trim quotes and whitespace if the user pasted them with quotes into Vercel UI
+  privateKey = privateKey.trim();
+  if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+    privateKey = privateKey.substring(1, privateKey.length - 1);
+  }
 
   const auth = new google.auth.JWT({
     email: customEmail,
