@@ -187,7 +187,10 @@ export function parseSdoValue(raw: unknown): SdoValue {
 
   const percentMatch  = str.match(/(\d+\.?\d*)%/);
   const fractionMatch = str.match(/\(([^)]+)\)/);
-  const numMatch      = str.match(/^(\d+\.?\d*)/); // Capture leading raw number
+  
+  // Clean string of commas before numeric match
+  const cleanStr = str.replace(/,/g, '');
+  const numMatch = cleanStr.match(/^(\d+\.?\d*)/); // Capture leading raw number
 
   return {
     raw: str,
@@ -205,7 +208,9 @@ export function parseSdoValue(raw: unknown): SdoValue {
 export function getAccomplishmentRate(actual: SdoValue | undefined, roTarget: string, indicatorText: string): string | null {
   if (!actual) return null;
 
-  const roNumMatch = roTarget.match(/^(\d+\.?\d*)/);
+  // Clean comma separators from target string
+  const cleanTarget = roTarget.replace(/,/g, '');
+  const roNumMatch = cleanTarget.match(/^(\d+\.?\d*)/);
   const targetVal = roNumMatch ? parseFloat(roNumMatch[1]) : null;
   const actualVal = actual.numericValue;
 

@@ -96,17 +96,12 @@
 .comparisonTable thead th {
   background: var(--deped-navy);
   color: #ffffff;
-  padding: 0.45rem 0.25rem;  /* Tighter padding */
+  padding: 0.45rem 0.15rem;  /* Even tighter padding for long SDO names */
   font-family: Arial, sans-serif;
-  font-size: 12px;          /* FIX: Much smaller to avoid squashing text */
-  font-weight: 800;
-  border: 1.5px solid #ffffff;
+  font-size: 0.55rem;
   text-align: center;
-  text-transform: uppercase;
-  letter-spacing: normal;
   vertical-align: middle;
-  word-break: break-word;   /* Allow breaking but prefer fitting */
-  line-height: 1.15;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 /* FIX: Specific color-matched headers */
