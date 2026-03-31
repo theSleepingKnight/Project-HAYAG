@@ -14,8 +14,13 @@ const zillaSlab = Zilla_Slab({
 });
 
 export const metadata: Metadata = {
-  title: "Project HAYAG | DepEd Region IX",
-  description: "Automated Reporting Tool for DepEd Region IX SDO Monitoring",
+  title: "H·A·Y·A·G | DepEd Region IX",
+  description: "Holistic Analysis of Yearly Accomplishments and Governance - DepEd Region IX",
+  icons: {
+    icon: '/favicon.png?v=2',
+    shortcut: '/favicon.png?v=2',
+    apple: '/favicon.png?v=2',
+  },
 };
 
 export default function RootLayout({

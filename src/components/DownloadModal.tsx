@@ -138,7 +138,7 @@ export default function DownloadModal({
                 </div>
               ))}
               {outlineItems.length === 0 && (
-                <p className={styles.emptyHint}>No agenda items. Click "+ Add Item" to begin.</p>
+                <p className={styles.emptyHint}>No agenda items. Click {'"+ Add Item"'} to begin.</p>
               )}
             </div>
           </div>

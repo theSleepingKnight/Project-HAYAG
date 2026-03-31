@@ -7,7 +7,6 @@ const A4_W_PX  = 1122;   // A4 landscape at 96 DPI (841.89pt × 96/72)
 const SCALE    = 1.5;    // Capture scale for crisp rendering
 const MARGIN   = 30;     // PDF point margin
 const FOOTER_H = 22;     // PDF points reserved for footer
-const NAVY_RGB = [27, 54, 93];
 
 // ─── Public interface ───────────────────────────────────────────────────────────
 export interface PdfOptions {
@@ -98,8 +97,49 @@ export async function generateHAYAGPdf(
     }
   }
 
+  // 4. Thank You Page
+  pdf.addPage();
+  drawThankYouPage(pdf, pdfW, pdfH, logoBase64);
+
+
   const blob = pdf.output('blob');
   saveAs(blob, filename);
+}
+
+// ─── Thank You Page ─────────────────────────────────────────────────────────────
+function drawThankYouPage(
+  pdf: jsPDF, pdfW: number, pdfH: number, logo?: string
+) {
+  pdf.setFillColor(27, 54, 93); // Navy
+  pdf.rect(0, 0, pdfW, pdfH, 'F');
+
+  // Gold side pillars
+  pdf.setFillColor(255, 215, 0);
+  pdf.rect(0, 0, 15, pdfH, 'F');
+  pdf.rect(pdfW - 15, 0, 15, pdfH, 'F');
+
+  const centerX = pdfW / 2;
+  
+  if (logo) {
+    pdf.addImage(logo, 'PNG', centerX - 60, 45, 120, 120);
+  }
+
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(28); 
+  pdf.text('DEPARTMENT OF EDUCATION', centerX, 195, { align: 'center' });
+
+  pdf.setTextColor(255, 215, 0); // Gold
+  pdf.setFontSize(20); 
+  pdf.text('Region IX – Zamboanga Peninsula', centerX, 222, { align: 'center' });
+
+  const boxW = 480, boxH = 90;
+  pdf.setFillColor(255, 215, 0);
+  roundedRect(pdf, centerX - boxW / 2, 260, boxW, boxH, 12);
+  
+  pdf.setTextColor(27, 54, 93);
+  pdf.setFontSize(54);
+  pdf.text('Thank you', centerX, 322, { align: 'center' });
 }
 
 // ─── Cover Page ────────────────────────────────────────────────────────────────
@@ -251,7 +291,7 @@ function drawThickBottomBorder(pdf: jsPDF, x: number, y: number, w: number) {
   pdf.line(x, y, x + w, y);
 }
 
-function findSplit(rb: any[], cur: number, max: number, tot: number) {
+function findSplit(rb: Array<{top:number, bottom:number}>, cur: number, max: number, tot: number) {
   let s = Math.min(max, tot);
   for (const r of rb) if (r.top >= cur && r.bottom <= max) s = r.bottom;
   if (s <= cur) s = Math.min(max, tot);
@@ -259,8 +299,8 @@ function findSplit(rb: any[], cur: number, max: number, tot: number) {
 }
 
 function getOffsetFromAncestor(el: HTMLElement, anc: HTMLElement) {
-  let o = 0, c: any = el;
-  while (c && c !== anc) { o += c.offsetTop; c = c.offsetParent; }
+  let o = 0, c: HTMLElement | null = el;
+  while (c && c !== anc) { o += c.offsetTop; c = c.offsetParent as HTMLElement | null; }
   return o;
 }
 
@@ -296,7 +336,7 @@ function formatQuarterLabel(q: string) {
   return `${ordinals[qNum] || qNum} Quarter`;
 }
 
-function roundedRect(pdf: any, x: number, y: number, w: number, h: number, r: number) {
+function roundedRect(pdf: jsPDF, x: number, y: number, w: number, h: number, r: number) {
   const k = r * (4/3) * (Math.sqrt(2) - 1);
   pdf.moveTo(x + r, y); pdf.lineTo(x + w - r, y);
   pdf.curveTo(x + w - r + k, y, x + w, y + r - k, x + w, y + r);

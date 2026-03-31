@@ -1,82 +1,143 @@
-'use server'
+'use server';
 
-import { extractSpreadsheetId, findRelevantSheets, parseGVizResponse } from '@/lib/google-sheets';
+import { google } from 'googleapis';
+import { headers } from 'next/headers';
+import { extractSpreadsheetId } from '@/lib/google-sheets';
 
-interface DetectionResult {
-  success: boolean;
-  message: string;
-  spreadsheetId: string | null;
-  foundSheets: {
-    prexc: string | null;
-    nonPrexc: string | null;
-  };
+export interface SheetMap {
+  prexc: string | null;
+  nonPrexc: string | null;
+  [key: string]: string | null;
 }
 
-/**
- * Step 1: Detect sheet structure from a Google Sheets URL.
- * Uses the GViz API to list sheet names without needing an API key.
- */
-export async function detectSheetFeatures(url: string): Promise<DetectionResult> {
-  const spreadsheetId = extractSpreadsheetId(url);
+export interface DetectionResult {
+  success: boolean;
+  spreadsheetId?: string;
+  foundSheets: SheetMap;
+  message?: string;
+}
 
-  if (!spreadsheetId) {
+// In-memory store for rudimentary IP-based rate limiting
+const detectionRateLimits = new Map<string, number>();
+
+async function getSheetsClient() {
+  const customEmail = process.env.GOOGLE_CLIENT_EMAIL;
+  const rawKey = process.env.GOOGLE_PRIVATE_KEY;
+
+  if (!customEmail || !rawKey) {
+    throw new Error('Google Credentials are missing in environment variables.');
+  }
+
+  // Ensure the environment variable newlines are decoded correctly
+  const privateKey = rawKey.replace(/\\n/g, '\n');
+
+  const auth = new google.auth.JWT({
+    email: customEmail,
+    key: privateKey,
+    scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+  });
+  return google.sheets({ version: 'v4', auth });
+}
+
+export async function detectSheetFeatures(url: string): Promise<DetectionResult> {
+  // --- Rate Limiting Logic (5 seconds) ---
+  const headersList = await headers();
+  const ip = headersList.get('x-forwarded-for') || 'unknown-ip';
+  const now = Date.now();
+  const lastCall = detectionRateLimits.get(ip) || 0;
+  
+  if (now - lastCall < 5000) {
+    const remainingSeconds = Math.ceil((5000 - (now - lastCall)) / 1000);
     return {
       success: false,
-      message: 'Invalid Google Sheets URL. Please check the link.',
-      spreadsheetId: null,
       foundSheets: { prexc: null, nonPrexc: null },
+      message: `Cooldown active. Please wait ${remainingSeconds}s before extracting again.`
+    };
+  }
+  detectionRateLimits.set(ip, now);
+  // ----------------------------------------
+
+  const id = extractSpreadsheetId(url);
+  if (!id) {
+    return {
+      success: false,
+      foundSheets: { prexc: null, nonPrexc: null },
+      message: 'Invalid Google Sheets URL.'
     };
   }
 
-  // The known tab names from the PIR-RMETA sheet (confirmed from screenshots)
-  // In a future iteration these can be fetched dynamically
-  const knownSheetNames = ['PREXC', 'NON-PREXC(FY2025)'];
-  const relevant = findRelevantSheets(knownSheetNames);
-
-  return {
-    success: true,
-    message: `✅ Detected: PREXC tab${relevant.nonPrexc ? ' + NON-PREXC tab' : ''}. Choose a section to generate.`,
-    spreadsheetId,
-    foundSheets: relevant,
-  };
-}
-
-/**
- * Step 2: Fetch and parse actual sheet data for a given tab name.
- * Uses the Google Visualization (GViz) JSON endpoint — works for sheets
- * shared with "Anyone with the link can view" (or if the user is logged in).
- */
-export async function fetchSheetData(
-  spreadsheetId: string,
-  sheetName: string
-): Promise<{ success: boolean; data: unknown[][]; message: string }> {
   try {
-    const encodedSheet = encodeURIComponent(sheetName);
-    const gvizUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json&sheet=${encodedSheet}&headers=0`;
-
-    const res = await fetch(gvizUrl, {
-      headers: { 'Content-Type': 'application/json' },
-      cache: 'no-store',
+    const sheets = await getSheetsClient();
+    const response = await sheets.spreadsheets.get({
+      spreadsheetId: id,
     });
 
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    }
+    const titles = response.data.sheets?.map(s => s.properties?.title || '') || [];
+    
+    // Pattern Match for mandatory and SDO tabs
+    const foundSheets: SheetMap = {
+      prexc: titles.find(t => t.toUpperCase().includes('PREXC')) || null,
+      nonPrexc: titles.find(t => t.toUpperCase().includes('NON-PREXC')) || null,
+    };
 
-    const text = await res.text();
-    const data = parseGVizResponse(text);
+    // Auto-detect SDO-specific tabs ending in -NP (like Dap-NP2026)
+    titles.forEach(title => {
+      if (title.toUpperCase().includes('-NP')) {
+        foundSheets[title] = title;
+      }
+    });
 
     return {
       success: true,
-      data,
-      message: `Loaded ${data.length} rows from "${sheetName}"`,
+      spreadsheetId: id,
+      foundSheets
     };
-  } catch (err) {
-    console.error('fetchSheetData error:', err);
+    } catch (error: unknown) {
+    console.error("Google API Detection Error:", error);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Check for specific error types
+    if (message.includes('permission_denied') || message.includes('403')) {
+      return {
+        success: false,
+        foundSheets: { prexc: null, nonPrexc: null },
+        message: 'Access Denied. Please ensure the Google Sheet is shared with: hayag-extractor@project-hayag-security.iam.gserviceaccount.com'
+      };
+    }
+    
+    return {
+      success: false,
+      foundSheets: { prexc: null, nonPrexc: null },
+      message: `Error: ${message}`
+    };
+  }
+}
+
+export async function fetchSheetData(
+  spreadsheetId: string,
+  sheetName: string
+): Promise<{ success: boolean; data: any[][]; message: string }> {
+  try {
+    const sheets = await getSheetsClient();
+    const range = `${sheetName}!A:AZ`; // Scan up to column AZ
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range,
+    });
+
+    const rows = response.data.values || [];
+    return {
+      success: true,
+      data: rows,
+      message: 'Success'
+    };
+  } catch (error: any) {
+    console.error("Google API Fetch Error:", error);
     return {
       success: false,
       data: [],
-      message: `Failed to load "${sheetName}". Make sure the sheet is set to "Anyone with the link can view".`,
+      message: error.message || 'Failed to fetch data'
     };
   }
 }

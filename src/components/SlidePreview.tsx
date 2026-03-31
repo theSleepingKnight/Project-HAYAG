@@ -1,55 +1,24 @@
 import React from 'react';
 import styles from './SlidePreview.module.css';
 import { SlideData } from '@/lib/slide-mapper';
-import { AnnualTarget } from '@/lib/data-engine';
+import { AnnualTarget, getAccomplishmentRate } from '@/lib/data-engine';
 
 interface SlidePreviewProps {
   slide: SlideData;
   template?: 'Formal' | 'Presentation';
 }
 
-/** Render the Annual Physical Target cell content */
+/** Render the RO Target exclusively */
 function AnnualTargetCell({ target }: { target: AnnualTarget }) {
-  const { co, ro, total } = target;
+  const { ro } = target;
 
-  if (!co && !ro) {
+  if (!ro) {
     return <span className={styles.na}>—</span>;
   }
 
-  // Both CO and RO present → show full breakdown
-  if (co && ro) {
-    return (
-      <div className={styles.targetBreakdown}>
-        <div className={styles.targetLine}>
-          <span className={styles.targetLabel}>CO:</span>
-          <span className={styles.targetNum}>{co}</span>
-        </div>
-        <div className={styles.targetLine}>
-          <span className={styles.targetLabel}>RO:</span>
-          <span className={styles.targetNum}>{ro}</span>
-        </div>
-        <div className={styles.targetTotal}>
-          = {total}
-        </div>
-      </div>
-    );
-  }
-
-  // Only one side present
   return (
-    <div className={styles.targetBreakdown}>
-      {co && (
-        <div className={styles.targetLine}>
-          <span className={styles.targetLabel}>CO:</span>
-          <span className={styles.targetNum}>{co}</span>
-        </div>
-      )}
-      {ro && (
-        <div className={styles.targetLine}>
-          <span className={styles.targetLabel}>RO:</span>
-          <span className={styles.targetNum}>{ro}</span>
-        </div>
-      )}
+    <div className={styles.targetBreakdown} style={{ justifyContent: 'center' }}>
+      <span className={styles.targetNum}>{ro}</span>
     </div>
   );
 }
@@ -78,7 +47,7 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
 
   // ── DATA SLIDE ─────────────────────────────────────────────────────────────
   const { quarter, groupName, sdosInThisSlide, programSections } = slide;
-  const totalCols = 2 + sdosInThisSlide.length + 1; // PPAS + Target + SDOs + Remarks
+  const totalCols = 2 + sdosInThisSlide.length + 2; // PPAS + Target + SDOs + Rem(RO) + Rem(Q)
 
   return (
     <div className={`${styles.slide} ${template === 'Formal' ? styles.formal : styles.presentation}`}>
@@ -94,7 +63,8 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
           <thead className={styles.tableHeaderGroup}>
             <tr className={styles.headerRow}>
               <th className={styles.mainCol}>INDICATORS / PPAS</th>
-              <th className={styles.targetCol}>ANNUAL PHYSICAL TARGETS</th>
+              <th className={styles.targetCol}>RO TARGET</th>
+              <th className={styles.remarksCol}>REMARKS (RO TARGET)</th>
               {sdosInThisSlide.map((sdo) => (
                 <th key={sdo} className={styles.sdoCol}>
                   {sdo.replace('SDO ', '')}
@@ -155,6 +125,11 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                             <AnnualTargetCell target={row.annualTarget} />
                           </td>
 
+                          {/* Target Remarks (Column D) */}
+                          <td className={styles.remarksCell}>
+                            {row.targetRemarks || <span className={styles.na}>—</span>}
+                          </td>
+
                           {/* SDO Accomplishment Columns */}
                           {sdosInThisSlide.map((sdo) => {
                             const val   = row.sdoValues[sdo];
@@ -166,17 +141,19 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                                 ? 'var(--status-complete)'
                                 : 'var(--status-under)';
 
+                            const rateLine = getAccomplishmentRate(val, row.annualTarget.ro, row.text);
+
                             return (
                               <td key={sdo} className={styles.sdoCell} style={{ color }}>
                                 {isEmpty ? (
                                   <span className={styles.na}>—</span>
                                 ) : (
                                   <>
-                                    <span className={styles.sdoValue}>
+                                    <div className={styles.sdoValue}>
                                       {pct !== null && pct !== undefined ? `${pct}%` : val.raw}
-                                    </span>
-                                    {val.fraction && (
-                                      <div className={styles.fraction}>{val.fraction}</div>
+                                    </div>
+                                    {rateLine && (
+                                      <div className={styles.fraction}>({rateLine})</div>
                                     )}
                                   </>
                                 )}
@@ -184,7 +161,7 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                             );
                           })}
 
-                          {/* Remarks */}
+                          {/* Quarterly Remarks */}
                           <td className={styles.remarksCell}>
                             {row.remarks || <span className={styles.na}>—</span>}
                           </td>

@@ -72,6 +72,35 @@
   display: inline-block;
 }
 
+/* ─── Placeholder State ────────────────────────────────────────────────────── */
+.placeholder {
+  width: 100%;
+  padding: 3.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  background: #f8fafc;
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.placeholderIcon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.placeholder p {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+  max-width: 360px;
+  line-height: 1.6;
+}
+
 .sdoList {
   display: flex;
   flex-direction: column;
@@ -117,5 +146,8 @@
   font-style: italic;
   font-size: 0.8rem;
   text-align: center;
-  padding: 1rem;
+  padding: 2rem;
+  background: rgba(255,255,255,0.5);
+  border-radius: 8px;
+  border: 1px dashed #e2e8f0;
 }

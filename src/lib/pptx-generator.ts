@@ -1,5 +1,6 @@
 import PptxGenJS from 'pptxgenjs';
 import { SlideData } from './slide-mapper';
+import { getAccomplishmentRate } from './data-engine';
 
 export interface PptxOptions {
   filename: string;
@@ -87,61 +88,66 @@ export async function generateHAYAGPptx(
 
     // Process Data Slide
     const { sdosInThisSlide, programSections, groupName } = slideData;
-    const tableRows: any[] = [];
+    const tableRows: PptxGenJS.TableRow[] = [];
     
     // Header Row
-    const headerRow: any[] = [
-      { text: "INDICATORS / PPAS", options: { bold: true, fill: '1B365D', color: 'FFFFFF', align: 'center', fontFace: 'Arial', fontSize: 9 } },
-      { text: "ANNUAL TARGETS", options: { bold: true, fill: '1B365D', color: 'FFFFFF', align: 'center', fontFace: 'Arial', fontSize: 9 } },
+    const headerRow: PptxGenJS.TableRow = [
+      { text: "INDICATORS / PPAS", options: { bold: true, fill: { color: '1B365D' }, color: 'FFFFFF', align: 'center', fontFace: 'Arial', fontSize: 9 } },
+      { text: "RO TARGET", options: { bold: true, fill: { color: '1B365D' }, color: 'FFFFFF', align: 'center', fontFace: 'Arial', fontSize: 9 } },
+      { text: "REMARKS (RO TARGET)", options: { bold: true, fill: { color: '1B365D' }, color: 'FFFFFF', align: 'center', fontFace: 'Arial', fontSize: 9 } },
     ];
     sdosInThisSlide.forEach(sdo => {
-      headerRow.push({ text: sdo.replace('SDO ', ''), options: { bold: true, fill: '1B365D', color: 'FFFFFF', align: 'center', fontFace: 'Arial', fontSize: 9 } });
+      headerRow.push({ text: sdo.replace('SDO ', ''), options: { bold: true, fill: { color: '1B365D' }, color: 'FFFFFF', align: 'center', fontFace: 'Arial', fontSize: 9 } });
     });
-    headerRow.push({ text: "REMARKS", options: { bold: true, fill: '1B365D', color: 'FFFFFF', align: 'center', fontFace: 'Arial', fontSize: 9 } });
+    headerRow.push({ text: "REMARKS", options: { bold: true, fill: { color: '1B365D' }, color: 'FFFFFF', align: 'center', fontFace: 'Arial', fontSize: 9 } });
     tableRows.push(headerRow);
 
     // Data Rows
     programSections.forEach(program => {
       // Program Header
       tableRows.push([
-        { text: program.programName, options: { colspan: 3 + sdosInThisSlide.length, bold: true, fill: 'F1F5F9', color: '1B365D', fontSize: 9, fontFace: 'Arial', h: 0.25 } }
+        { text: program.programName, options: { colspan: 4 + sdosInThisSlide.length, bold: true, fill: { color: 'F1F5F9' }, color: '1B365D', fontSize: 9, fontFace: 'Arial' } }
       ]);
 
       program.groups.forEach(group => {
-        // Group Header (Outcome/Output)
         if (group.label) {
           tableRows.push([
-            { text: group.label.toUpperCase(), options: { colspan: 3 + sdosInThisSlide.length, italic: true, bold: true, color: '64748B', fontSize: 8, fontFace: 'Arial', margin: 0, h: 0.2 } }
+            { text: group.label.toUpperCase(), options: { colspan: 4 + sdosInThisSlide.length, italic: true, bold: true, color: '64748B', fontSize: 8, fontFace: 'Arial', margin: 0 } }
           ]);
         }
 
         group.rows.forEach(row => {
           if (row.isParentLabel) {
             tableRows.push([
-              { text: row.text, options: { colspan: 3 + sdosInThisSlide.length, bold: true, color: '1B365D', fontSize: 8, fontFace: 'Arial', fill: 'F8FAFC', h: 0.25 } }
+              { text: row.text, options: { colspan: 4 + sdosInThisSlide.length, bold: true, color: '1B365D', fontSize: 8, fontFace: 'Arial', fill: { color: 'F8FAFC' } } }
             ]);
             return;
           }
 
-          const rowData: any[] = [
-            { text: row.text, options: { fontSize: 8, fontFace: 'Arial', color: '334155', h: 0.2, margin: 1 } },
-            { text: row.annualTarget.total || '—', options: { fontSize: 8, fontFace: 'Arial', align: 'center', color: '334155', h: 0.2, margin: 1 } }
+          const rowData: PptxGenJS.TableRow = [
+            { text: row.text, options: { fontSize: 8, fontFace: 'Arial', color: '334155', margin: 1 } },
+            { text: row.annualTarget.ro || '—', options: { fontSize: 8, fontFace: 'Arial', align: 'center', color: '334155', margin: 1 } },
+            { text: row.targetRemarks || '—', options: { fontSize: 8, fontFace: 'Arial', align: 'center', color: '64748B', margin: 1 } }
           ];
 
           sdosInThisSlide.forEach(sdo => {
             const val = row.sdoValues[sdo];
+            const rateLine = getAccomplishmentRate(val, row.annualTarget.ro, row.text);
             const pct = val?.percentage;
             const color = (!val || !val.raw) 
               ? '94A3B8' 
               : (pct !== null && pct >= 100) ? '059669' : 'DC2626';
             
+            const cellText = val?.raw || '—';
+            const finalDisplay = rateLine ? `${cellText}\n(${rateLine})` : cellText;
+
             rowData.push({ 
-              text: val?.raw || '—', 
-              options: { fontSize: 8, fontFace: 'Arial', align: 'center', color, h: 0.2, margin: 1 } 
+              text: finalDisplay, 
+              options: { fontSize: 8, fontFace: 'Arial', align: 'center', color, margin: 1 } 
             });
           });
 
-          rowData.push({ text: row.remarks || '—', options: { fontSize: 7, fontFace: 'Arial', color: '64748B', h: 0.2, margin: 1 } });
+          rowData.push({ text: row.remarks || '—', options: { fontSize: 7, fontFace: 'Arial', color: '64748B', margin: 1 } });
           tableRows.push(rowData);
         });
       });
@@ -168,6 +174,27 @@ export async function generateHAYAGPptx(
       fontSize: 8,
     });
   }
+
+  // ─── END SLIDE ─────────────────────────────────────────────────────────────
+  const endSlide = pptx.addSlide();
+  endSlide.background = { color: '1B365D' };
+
+  endSlide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 0.15, h: '100%', fill: { color: 'FFD700' } });
+  endSlide.addShape(pptx.ShapeType.rect, { x: 9.85, y: 0, w: 0.15, h: '100%', fill: { color: 'FFD700' } });
+
+  endSlide.addText('DEPARTMENT OF EDUCATION', {
+    x: 0, y: 2.2, w: '100%', align: 'center', fontSize: 24, bold: true, color: 'FFFFFF', fontFace: 'Arial'
+  });
+  endSlide.addText('Region IX – Zamboanga Peninsula', {
+    x: 0, y: 2.6, w: '100%', align: 'center', fontSize: 18, color: 'FFD700', fontFace: 'Arial'
+  });
+
+  endSlide.addShape(pptx.ShapeType.roundRect, {
+    x: 2.5, y: 3.1, w: 5, h: 0.8, fill: { color: 'FFD700' }, rectRadius: 0.1
+  });
+  endSlide.addText('Thank you', {
+    x: 0, y: 3.2, w: '100%', align: 'center', fontSize: 42, bold: true, color: '1B365D', fontFace: 'Arial'
+  });
 
   // ─── 4. DOWNLOAD ─────────────────────────────────────────────────────────────
   await pptx.writeFile({ fileName: filename });

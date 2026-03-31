@@ -88,13 +88,13 @@
 
 /* ─── PREXC / NON-PREXC Section Toggle ─────────────────────────────────────── */
 .sectionToggle {
-  display: flex;
-  gap: 1rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
 }
 
 .sectionBtn {
-  flex: 1;
-  padding: 1.25rem 1.5rem;
+  padding: 1.5rem;
   background: var(--slate-50);
   border: 2px solid var(--slate-200);
   border-radius: var(--border-radius);
@@ -133,3 +133,6 @@
   letter-spacing: 0;
   color: var(--slate-400);
 }
+
+
+

@@ -5,30 +5,51 @@ import styles from './GeneratorOptions.module.css';
 
 interface GeneratorOptionsProps {
   availableSections: { prexc: string | null; nonPrexc: string | null };
-  onSectionChange: (section: 'prexc' | 'nonPrexc' | 'master') => void;
+  onSectionChange: (section: string) => void;
+  onQuarterChange?: (quarter: string) => void;
 }
 
 export default function GeneratorOptions({
   availableSections,
   onSectionChange,
+  onQuarterChange,
 }: GeneratorOptionsProps) {
-  const [activeSection, setActiveSection] = useState<'prexc' | 'nonPrexc' | 'master'>(
+  const [activeSection, setActiveSection] = useState<string>(
     availableSections.prexc ? 'prexc' : 'nonPrexc'
   );
   const [activeQuarter, setActiveQuarter] = useState('Q1');
 
-  const handleSectionSwitch = (section: 'prexc' | 'nonPrexc' | 'master') => {
+  const handleSectionSwitch = (section: string) => {
     setActiveSection(section);
     onSectionChange(section);
   };
 
+  const handleQuarterSwitch = (quarter: string) => {
+    setActiveQuarter(quarter);
+    if (onQuarterChange) onQuarterChange(quarter);
+  };
+
+  const SDO_LIST = [
+    { name: 'Dapitan City', code: 'Dap-NP2026' },
+    { name: 'Dipolog City', code: 'Dip-NP2026' },
+    { name: 'Isabela City', code: 'Isa-NP2026' },
+    { name: 'Pagadian City', code: 'Pag-NP2026' },
+    { name: 'Sulu', code: 'Sul-NP2026' },
+    { name: 'Zamboanga City', code: 'ZamC-NP2026' },
+    { name: 'Zamboanga del Norte', code: 'ZDN-NP2026' },
+    { name: 'Zamboanga del Sur', code: 'ZDS-NP2026' },
+    { name: 'Zamboanga Sibugay', code: 'ZSP-NP2026' },
+  ];
+
   return (
     <div className={styles.container}>
 
-      {/* 0. PREXC / NON-PREXC Section Selector */}
+      {/* 0. Report Section Selector */}
       <div className={styles.section}>
         <span className={styles.label}>Choose Report Section</span>
+        
         <div className={styles.sectionToggle}>
+          {/* Master PREXC Button */}
           {availableSections.prexc && (
             <button
               className={`${styles.sectionBtn} ${activeSection === 'prexc' ? styles.sectionActive : ''}`}
@@ -39,26 +60,19 @@ export default function GeneratorOptions({
               <span className={styles.sectionSub}>Program Category</span>
             </button>
           )}
-          {availableSections.nonPrexc && (
+
+          {/* 9 SDO Tracks natively adjacent */}
+          {SDO_LIST.map((sdo) => (
             <button
-              className={`${styles.sectionBtn} ${activeSection === 'nonPrexc' ? styles.sectionActive : ''}`}
-              onClick={() => handleSectionSwitch('nonPrexc')}
+              key={sdo.code}
+              className={`${styles.sectionBtn} ${activeSection === sdo.code ? styles.sectionActive : ''}`}
+              onClick={() => handleSectionSwitch(sdo.code)}
             >
-              <span className={styles.sectionIcon}>📁</span>
-              NON-PREXC
-              <span className={styles.sectionSub}>Non-Program Category</span>
+              <span className={styles.sectionIcon}>📊</span>
+              {sdo.name}
+              <span className={styles.sectionSub}>(NON-PREXC)</span>
             </button>
-          )}
-          {availableSections.prexc && availableSections.nonPrexc && (
-            <button
-              className={`${styles.sectionBtn} ${activeSection === 'master' ? styles.sectionActive : ''}`}
-              onClick={() => handleSectionSwitch('master')}
-            >
-              <span className={styles.sectionIcon}>🌟</span>
-              COMBINED
-              <span className={styles.sectionSub}>Master Report (Both)</span>
-            </button>
-          )}
+          ))}
         </div>
       </div>
 
@@ -67,23 +81,18 @@ export default function GeneratorOptions({
         <span className={styles.label}>Select Monitoring Quarter</span>
         <div className={styles.buttonGrid}>
           {['Q1', 'Q2', 'Q3', 'Q4'].map((q) => {
-            const isQ1 = q === 'Q1';
             return (
               <button
                 key={q}
                 className={`${styles.optionBtn} ${activeQuarter === q ? styles.active : ''}`}
-                onClick={() => isQ1 && setActiveQuarter(q)}
-                disabled={!isQ1}
+                onClick={() => handleQuarterSwitch(q)}
               >
                 <div>{q === 'Q1' ? 'First' : q === 'Q2' ? 'Second' : q === 'Q3' ? 'Third' : 'Fourth'} Quarter</div>
-                {!isQ1 && <div style={{ fontSize: '0.6rem', color: '#94a3b8', fontStyle: 'italic', marginTop: '4px' }}>Unavailable</div>}
               </button>
             );
           })}
         </div>
       </div>
-
-      {/* Template Selector removed (Defaulting to Formal PDF theme) */}
 
     </div>
   );

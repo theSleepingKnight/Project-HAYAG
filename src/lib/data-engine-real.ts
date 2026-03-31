@@ -3,9 +3,9 @@ import {
   IndicatorGroup,
   IndicatorRow,
   SheetConfig,
-  buildDynamicConfig,
   parseSdoValue,
   computeAnnualTarget,
+  SdoValue,
 } from './data-engine';
 
 // ── Pattern helpers ──────────────────────────────────────────────────────────
@@ -22,107 +22,95 @@ function isDataRow(text: string): boolean {
   return /^([0-9a-zA-Z]+\.|-)/.test(t);
 }
 
-function isAllCaps(text: string): boolean {
-  const cleaned = text.trim();
-  if (cleaned.length < 4) return false;
-  // Never treat a data row (1., a., -) as an ALL CAPS Division header
-  if (isDataRow(cleaned)) return false; 
-  return cleaned === cleaned.toUpperCase();
-}
 
 // ── Known non-program header strings ─────────────────────────────────────────
 const SKIP_ROW_PATTERNS = [
-  /^DepEd/i, /^PIR-RMETA/i, /^PREXC/i, /^NON-PREXC/i, /^Concerned/i,
+  /^DepEd/i, /^PIR-RMETA/i, /^PREXC/i, /NON-PREXC/i, /^Concerned/i,
   /^PPAs/i, /^Physical/i, /^Accomplishments/i, /^CO Target/i, /^RO Target/i, /^Indicators/i,
 ];
+
 function isHeaderRow(text: string): boolean {
   return SKIP_ROW_PATTERNS.some((p) => p.test(text.trim()));
+}
+
+function isPureHeader(row: unknown[], startCheckCol: number): boolean {
+  for (let c = startCheckCol; c < row.length; c++) {
+    const val = (row[c] ?? '').toString().trim();
+    if (val && val.toLowerCase() !== 'null') return false;
+  }
+  return true;
 }
 
 export function extractRealSheetData(sheetData: unknown[][], config: SheetConfig): ProgramSection[] {
   const programs: ProgramSection[] = [];
   let currentProgram: ProgramSection | null = null;
   let currentGroup:   IndicatorGroup   | null = null;
-
-  const isNonPrexc = config.indicatorCol === 1;
+  
+  let consecutiveHeaders: string[] = [];
 
   for (let i = 0; i < sheetData.length; i++) {
     const row  = sheetData[i] || [];
     const colA = ((row[0] ?? '') as string).toString().trim();
     const colB = ((row[1] ?? '') as string).toString().trim();
-    const colC = ((row[2] ?? '') as string).toString().trim();
     
-    // In NON-PREXC, the indicator text is in Col B (index 1)
     const indicatorText = ((row[config.indicatorCol] ?? '') as string).toString().trim();
     
     // Skip if basically empty
     if (!indicatorText && !colA && !colB) continue;
     if (isHeaderRow(indicatorText) || isHeaderRow(colA)) continue;
 
-    // ── Mode A: NON-PREXC (Column A Division + Column B Indicators) ──
-    if (isNonPrexc) {
-       // 1. Division Search (Check A first, then B for ALL CAPS)
-       const headSource = colA || colB; 
-       if (isAllCaps(headSource) && !isDataRow(headSource)) {
-          if (currentProgram) programs.push(currentProgram);
-          currentProgram = { programName: headSource, groups: [] };
-          currentGroup = null;
-          continue;
-       }
+    const programCandidate = indicatorText || colB || colA;
+    
+    // User Logic: If the row has NO target/accomplishment data, it's a Header
+    const hasNoData = isPureHeader(row, config.coTargetCol);
 
-       // 2. Data Row Search (Column B)
-       if (isDataRow(indicatorText)) {
-          const sdoValues: Record<string, any> = {};
-          for (const [name, idx] of Object.entries(config.sdoMap)) {
-            sdoValues[name] = parseSdoValue(row[idx]);
-          }
-          const rowObj: IndicatorRow = {
-            text: indicatorText,
-            isParentLabel: false,
-            annualTarget: computeAnnualTarget(row[config.coTargetCol], row[config.roTargetCol]),
-            sdoValues,
-            remarks: ((row[config.remarksCol] ?? '') as string).toString().trim(),
-          };
-          if (!currentGroup) {
-            currentGroup = { label: '', rows: [] };
-            if (currentProgram) currentProgram.groups.push(currentGroup);
-          }
-          currentGroup.rows.push(rowObj);
-       } else if (indicatorText.length > 5 && !isHeaderRow(indicatorText)) {
-          // If it's not data and not all-caps division, it's likely a sub-group (ASSESSMENT OF LEARNING OUTCOMES)
-          currentGroup = { label: indicatorText, rows: [] };
-          if (currentProgram) currentProgram.groups.push(currentGroup);
-       }
-       continue;
-    }
+    if (programCandidate && !isHeaderRow(programCandidate) && !isLabelRow(programCandidate) && !isDataRow(programCandidate) && programCandidate.length > 4) {
+      if (hasNoData) {
+        // If we already collected indicators, this starts a completely new section.
+        if (currentProgram && currentProgram.groups.length > 0) {
+          programs.push(currentProgram);
+          currentProgram = null;
+          consecutiveHeaders = []; // Reset the header builder
+        }
 
-    // ── Mode B: PREXC (Legacy 3-Col Style) ──
-    const programCandidate = colB || colA;
-    if (programCandidate && !isHeaderRow(programCandidate) && !isLabelRow(programCandidate) && !isDataRow(programCandidate) && !colC) {
-      if (/program|education|development|inclusive|support|human/i.test(programCandidate)) {
-        if (currentProgram) programs.push(currentProgram);
-        currentProgram = { programName: programCandidate, groups: [] };
+        consecutiveHeaders.push(programCandidate);
+        const combinedName = consecutiveHeaders.join(' - ');
+
+        if (!currentProgram) {
+          currentProgram = { programName: combinedName, groups: [] };
+        } else {
+          currentProgram.programName = combinedName; // Appending the program name
+        }
+        
         currentGroup = null;
         continue;
       }
     }
-    const labelText = isLabelRow(colB) ? colB : isLabelRow(colC) ? colC : null;
-    if (labelText) {
-      currentGroup = { label: labelText, rows: [] };
+
+    // 2. Check if row is a grouping label (e.g. Outcome/Output Indicator(s))
+    if (isLabelRow(programCandidate)) {
+      currentGroup = { label: programCandidate, rows: [] };
       if (currentProgram) currentProgram.groups.push(currentGroup);
       continue;
     }
-    if (indicatorText && isDataRow(indicatorText)) {
-      const sdoValues: Record<string, any> = {};
+
+    // 3. Extract Indicator Data (Must start with a number/letter or be valid)
+    if (indicatorText && (isDataRow(indicatorText) || indicatorText.length > 5)) {
+      const sdoValues: Record<string, SdoValue> = {};
       for (const [name, idx] of Object.entries(config.sdoMap)) {
         sdoValues[name] = parseSdoValue(row[idx]);
       }
+      // Capture both remarks without merging
+      const targetRem = config.targetRemarksCol ? ((row[config.targetRemarksCol] ?? '') as string).toString().trim() : '';
+      const accompRem = ((row[config.remarksCol] ?? '') as string).toString().trim();
+      
       const rowObj: IndicatorRow = {
         text: indicatorText,
         isParentLabel: false,
         annualTarget: computeAnnualTarget(row[config.coTargetCol], row[config.roTargetCol]),
         sdoValues,
-        remarks: ((row[config.remarksCol] ?? '') as string).toString().trim(),
+        remarks: accompRem,
+        targetRemarks: targetRem,
       };
       if (!currentGroup) {
         currentGroup = { label: '', rows: [] };
@@ -149,7 +137,6 @@ export function extractRealSheetData(sheetData: unknown[][], config: SheetConfig
         const isCurrLetter = /^[a-z]\.\s/.test(currText);         // e.g. "a."
         const isCurrDash   = /^-/.test(currText);                // e.g. "-"
         
-        const isNextMain = /^([0-9]+\.|[A-Z]\.)/.test(nextText);
         const isNextLetter = /^[a-z]\.\s/.test(nextText);
         const isNextDash   = /^-/.test(nextText);
 

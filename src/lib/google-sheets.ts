@@ -3,23 +3,29 @@
  * Utilities for parsing Google Sheets URLs and GViz responses.
  */
 
+import { sheets_v4 } from 'googleapis';
+
 /** Extract the Spreadsheet ID from a Google Sheets URL */
 export function extractSpreadsheetId(url: string): string | null {
   const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
   return match ? match[1] : null;
 }
 
-/** Find the PREXC and NON-PREXC tab names from a list of sheet titles */
-export function findRelevantSheets(sheetTitles: string[]) {
-  const prexcSheet = sheetTitles.find(
-    (t) => t.toUpperCase().includes('PREXC') && !t.toUpperCase().includes('NON')
-  );
-  const nonPrexcSheet = sheetTitles.find((t) =>
-    t.toUpperCase().includes('NON-PREXC') || t.toUpperCase().includes('NON PREXC')
-  );
+/** Find the PREXC tab name from a list of sheet titles */
+export function findRelevantSheets(sheets: sheets_v4.Schema$Sheet[]) {
+  const titles = sheets.map(s => s.properties?.title || '');
+  console.log("Found raw sheet titles:", titles);
+
+  let prexc = titles.find(t => t.toUpperCase().includes('PREXC'));
+  const nonPrexc = titles.find(t => t.toUpperCase().includes('NON-PREXC'));
+
+  if (!prexc && titles.includes('PREXC')) {
+    prexc = 'PREXC';
+  }
+
   return {
-    prexc: prexcSheet ?? null,
-    nonPrexc: nonPrexcSheet ?? null,
+    prexc: prexc || null,
+    nonPrexc: nonPrexc || null
   };
 }
 
