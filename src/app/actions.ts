@@ -37,6 +37,16 @@ async function getSheetsClient() {
     privateKey = privateKey.substring(1, privateKey.length - 1);
   }
 
+  // Base64 Detection & Decoding Fallback
+  // If it doesn't look like a standard PEM but looks like Base64 (starts with 'LS0tLS1')
+  if (!privateKey.includes('-----BEGIN') && privateKey.startsWith('LS0tLS1')) {
+    try {
+      privateKey = Buffer.from(privateKey, 'base64').toString('utf8');
+    } catch (e) {
+       console.error("Base64 Key Decoding failed:", e);
+    }
+  }
+
   const auth = new google.auth.JWT({
     email: customEmail,
     key: privateKey,
