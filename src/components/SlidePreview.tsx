@@ -59,7 +59,8 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
 
       {/* Main comparison table — structured for PDF pagination */}
       <div className={styles.tableArea}>
-        <table className={styles.comparisonTable}>
+        <div className={styles.responsiveScroll}>
+          <table className={styles.comparisonTable}>
           <thead className={styles.tableHeaderGroup}>
             <tr className={styles.headerRow}>
               <th className={styles.mainCol}>INDICATORS / PPAS</th>
@@ -175,7 +176,8 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
               </React.Fragment>
             ))}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
 
       <div className={styles.footer}>

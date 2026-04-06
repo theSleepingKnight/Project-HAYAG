@@ -80,8 +80,14 @@
 /* ─── Table Area ────────────────────────────────────────────────────────────── */
 .tableArea {
   flex: 1;
-  overflow: auto;
-  border: 2px solid #1b365d; /* Thick outer border for the whole table area */
+  overflow: hidden; /* Changed from auto to let inner scroll handle it */
+  border: 2px solid #1b365d; 
+}
+
+.responsiveScroll {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .comparisonTable {
@@ -89,8 +95,16 @@
   border-collapse: collapse;
   font-size: 0.72rem;
   table-layout: fixed;
-  border: 2px solid #1b365d; /* FIX: Thick border OUTSIDE */
+  border: 2px solid #1b365d;
+  min-width: 1000px; /* Force minimum width to prevent overlapping text on mobile */
 }
+
+@media (max-width: 640px) {
+  .comparisonTable {
+    min-width: 900px;
+  }
+}
+
 
 /* ─── Column Header Row ─────────────────────────────────────────────────────── */
 .comparisonTable thead th {

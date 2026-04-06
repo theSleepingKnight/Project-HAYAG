@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import styles from './SdoGrouping.module.css';
+import { INITIAL_GROUPS_STATE, EMPTY_GROUPS_STATE } from '@/lib/config';
 
 interface SdoGroupingProps {
   onGroupsChange?: (groups: Record<string, string[]>) => void;
@@ -9,31 +10,16 @@ interface SdoGroupingProps {
 }
 
 export default function SdoGrouping({ onGroupsChange, hasData }: SdoGroupingProps) {
-  const [groups, setGroups] = useState<Record<string, string[]>>({
-    "Group A": [],
-    "Group B": [],
-    "Group C": []
-  });
+  const [groups, setGroups] = useState<Record<string, string[]>>(EMPTY_GROUPS_STATE);
 
   const [numGroups, setNumGroups] = useState(1);
 
   // 1. Initial Load: If hasData is true, we populate the initial names
   useEffect(() => {
     if (!hasData) {
-      setGroups({
-        "Group A": [],
-        "Group B": [],
-        "Group C": []
-      });
+      setGroups(EMPTY_GROUPS_STATE);
       return;
     }
-
-    // Default Region IX SDOs
-    const defaultSdos = [
-      "SDO Dapitan City", "SDO Dipolog City", "SDO Isabela City",
-      "SDO Pagadian City", "SDO Sulu", "SDO Zamboanga City",
-      "SDO Zamboanga del Norte", "SDO Zamboanga del Sur", "SDO Zamboanga Sibugay",
-    ];
 
     const saved = localStorage.getItem('hayag_sdo_groups');
     if (saved) {
@@ -52,12 +38,8 @@ export default function SdoGrouping({ onGroupsChange, hasData }: SdoGroupingProp
       }
     }
 
-    // If no saved data, use the Region IX defaults in Group A
-    setGroups({
-      "Group A": defaultSdos,
-      "Group B": [],
-      "Group C": []
-    });
+    // If no saved data, use the Region IX defaults
+    setGroups(INITIAL_GROUPS_STATE);
   }, [hasData]);
 
   // 2. Sync groups to parent + persist to localStorage (only if we HAVE data)

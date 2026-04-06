@@ -21,15 +21,29 @@ export interface DetectionResult {
 const detectionRateLimits = new Map<string, number>();
 
 async function getSheetsClient() {
-  const customEmail = process.env.GOOGLE_CLIENT_EMAIL;
-  const rawKey = process.env.GOOGLE_PRIVATE_KEY;
+  let customEmail = process.env.GOOGLE_CLIENT_EMAIL;
+  let privateKey = process.env.GOOGLE_PRIVATE_KEY;
 
-  if (!customEmail || !rawKey) {
-    throw new Error('Google Credentials are missing in environment variables.');
+  // Fallback: Check for a single JSON string if individual vars are not set
+  if (!customEmail || !privateKey) {
+    const jsonStr = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+    if (jsonStr) {
+      try {
+        const credentials = JSON.parse(jsonStr);
+        customEmail = credentials.client_email;
+        privateKey = credentials.private_key;
+      } catch (e) {
+        console.error("Failed to parse GOOGLE_SERVICE_ACCOUNT_JSON:", e);
+      }
+    }
+  }
+
+  if (!customEmail || !privateKey) {
+    throw new Error('Google Credentials are missing in environment variables. Please set GOOGLE_CLIENT_EMAIL and GOOGLE_PRIVATE_KEY, or GOOGLE_SERVICE_ACCOUNT_JSON.');
   }
 
   // Ensure the environment variable newlines are decoded correctly
-  let privateKey = rawKey.replace(/\\n/g, '\n');
+  privateKey = privateKey.replace(/\\n/g, '\n');
   
   // Trim quotes and whitespace if the user pasted them with quotes into Vercel UI
   privateKey = privateKey.trim();
@@ -132,7 +146,7 @@ export async function detectSheetFeatures(url: string): Promise<DetectionResult>
 export async function fetchSheetData(
   spreadsheetId: string,
   sheetName: string
-): Promise<{ success: boolean; data: any[][]; message: string }> {
+): Promise<{ success: boolean; data: unknown[][]; message: string }> {
   try {
     const sheets = await getSheetsClient();
     const range = `${sheetName}!A:AZ`; // Scan up to column AZ
@@ -145,15 +159,15 @@ export async function fetchSheetData(
     const rows = response.data.values || [];
     return {
       success: true,
-      data: rows,
+      data: rows as unknown[][],
       message: 'Success'
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Google API Fetch Error:", error);
     return {
       success: false,
       data: [],
-      message: error.message || 'Failed to fetch data'
+      message: error instanceof Error ? error.message : 'Failed to fetch data'
     };
   }
 }

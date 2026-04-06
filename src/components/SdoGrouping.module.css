@@ -18,6 +18,14 @@
   border-bottom: 1px solid var(--slate-100);
 }
 
+@media (max-width: 640px) {
+  .headerArea {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.5rem;
+  }
+}
+
 .title {
   font-size: 1.25rem;
   font-weight: 700;
@@ -27,6 +35,17 @@
 .presets {
   display: flex;
   gap: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .presets {
+    width: 100%;
+    flex-direction: column;
+  }
+  .presetBtn {
+    width: 100%;
+    text-align: center;
+  }
 }
 
 .presetBtn {

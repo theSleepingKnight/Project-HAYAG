@@ -8,6 +8,12 @@
   background: linear-gradient(135deg, var(--slate-50) 0%, #e2e8f0 100%);
 }
 
+@media (max-width: 640px) {
+  .dashboard {
+    padding: 1rem;
+  }
+}
+
 .card {
   width: 100%;
   max-width: 600px;
@@ -19,10 +25,22 @@
   text-align: center;
 }
 
+@media (max-width: 640px) {
+  .card {
+    padding: 2rem 1.25rem;
+  }
+}
+
 .title {
   font-size: 2.5rem;
   margin-bottom: 0.5rem;
   letter-spacing: -0.02em;
+}
+
+@media (max-width: 640px) {
+  .title {
+    font-size: 1.8rem;
+  }
 }
 
 .subtitle {
@@ -156,7 +174,7 @@
   display: flex;
   flex-direction: column;
   gap: 2rem;
-  align-items: center;
+  align-items: center; /* Centered on desktop */
   background: var(--slate-100);
   padding: 2rem;
   border-radius: var(--border-radius);
@@ -167,12 +185,102 @@
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
 }
 
+@media (max-width: 640px) {
+  .previewContainer {
+    padding: 1.5rem 0.5rem;
+    align-items: flex-start; /* Left-aligned on mobile for better scrolling */
+  }
+}
+
 .previewContainer > * {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-  zoom: 0.75;
+  transform: scale(var(--preview-scale, 0.8)); /* Dynamic zoom */
+  transform-origin: top center; /* Centered on desktop */
   border-radius: 8px;
   overflow: hidden;
   flex-shrink: 0;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (max-width: 640px) {
+  .previewContainer > * {
+    transform: scale(var(--preview-scale, 1)); /* No scaling on mobile or dynamic zoom */
+    transform-origin: top left; /* Top-left origin on mobile for swipe consistency */
+    margin: 0;
+  }
+}
+
+/* New Compact Zoom Controls in Header */
+.zoomControlsHeader {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.25rem 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 0.7rem;
+  margin-right: 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .zoomControlsHeader {
+    width: 100%;
+    justify-content: space-between;
+    margin-right: 0;
+  }
+}
+
+.zoomLabel {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.zoomSliderCompact {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100px;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .zoomSliderCompact {
+    flex: 1;
+    margin: 0 1rem;
+  }
+}
+
+.zoomSliderCompact::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  background: #FFD700; /* DepEd Gold */
+  border: 1px solid white;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.autoFitBtnCompact {
+  padding: 0.25rem 0.6rem;
+  background: transparent;
+  border: 1px solid #FFD700;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.65rem;
+  color: #FFD700;
+  font-weight: 700;
+  text-transform: uppercase;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.autoFitBtnCompact:hover {
+  background: #FFD700;
+  color: #1B365D;
 }
 
 /* Hidden off-screen container for clean PDF capture — no zoom, no shadows.
@@ -207,6 +315,15 @@
   padding: 1rem 1.5rem;
   background: linear-gradient(135deg, #1B365D 0%, #2a4a7a 100%);
   border-bottom: 3px solid #FFD700;
+}
+
+@media (max-width: 640px) {
+  .groupHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+  }
 }
 
 .groupTitle {

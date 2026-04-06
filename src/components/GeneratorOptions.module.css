@@ -28,6 +28,18 @@
   gap: 1rem;
 }
 
+@media (max-width: 640px) {
+  .buttonGrid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+  .optionBtn {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.85rem;
+  }
+}
+
 .optionBtn {
   flex: 1;
   padding: 1rem;
@@ -91,6 +103,16 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 1.25rem;
+}
+
+@media (max-width: 640px) {
+  .sectionToggle {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  .sectionBtn {
+    padding: 1rem;
+  }
 }
 
 .sectionBtn {
