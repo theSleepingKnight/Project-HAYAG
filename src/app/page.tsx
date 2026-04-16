@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import styles from './page.module.css';
 import SdoGrouping from '@/components/SdoGrouping';
 import GeneratorOptions from '@/components/GeneratorOptions';
@@ -34,7 +34,15 @@ export default function Home() {
   const [pendingDownload, setPendingDownload] = useState<{ groupName: string; quarter: string; format: 'pdf' | 'pptx' } | null>(null);
   
   // New: Manual Scale Control
-  const [previewScale, setPreviewScale] = useState<number | null>(null);
+  const [previewScale, setPreviewScale] = useState<number>(0.8);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    if (window.innerWidth < 641) {
+      setPreviewScale(1.0);
+    }
+  }, []);
 
   const handleGroupsChange = useCallback((groups: Record<string, string[]>) => {
     setCurrentGroups(groups);
@@ -153,14 +161,14 @@ export default function Home() {
                         </span>
                         <div className={styles.groupActions}>
                         <div className={styles.zoomControlsHeader}>
-                          <span className={styles.zoomLabel}>Zoom: {Math.round((previewScale || (typeof window !== 'undefined' && window.innerWidth < 641 ? 1.0 : 0.8)) * 100)}%</span>
+                          <span className={styles.zoomLabel}>Zoom: {Math.round(previewScale * 100)}%</span>
                           <input 
                             type="range" 
                             min="0.3" 
                             max="1.5" 
                             step="0.05" 
                             className={styles.zoomSliderCompact}
-                            value={previewScale || (typeof window !== 'undefined' && window.innerWidth < 641 ? 1.0 : 0.8)}
+                            value={previewScale}
                             onChange={(e) => setPreviewScale(parseFloat(e.target.value))}
                           />
                           <button className={styles.autoFitBtnCompact} onClick={handleAutoFit}>Auto-Fit</button>
@@ -174,22 +182,21 @@ export default function Home() {
                           {isExporting ? '⏳ Generating...' : `⬇ PDF Report`}
                         </button>
                           <div className={styles.pptxWrapper}>
-                            <button 
-                              className={`${styles.groupPptxBtn} ${isExporting ? styles.groupDownloadBusy : ''}`}
-                              onClick={() => handleGroupDownload(groupName, activeQuarter, 'pptx')} 
-                              disabled={isExporting || slides.length === 0}
-                            >
+                            <button className={styles.groupPptxBtn} disabled={true}>
                               ⬇ PPTX Slides
                             </button>
+                            <span className={styles.comingSoon}>Coming soon.</span>
                           </div>
                         </div>
                       </div>
                       <div className={styles.previewContainer}>
                         {slides.map((s, i) => <SlidePreview key={i} slide={s} />)}
                       </div>
-                      <div id={containerId} className={styles.pdfHiddenContainer}>
-                        {slides.map((s, i) => <SlidePreview key={i} slide={s} />)}
-                      </div>
+                      {isExporting && (
+                        <div id={containerId} className={styles.pdfHiddenContainer}>
+                          {slides.map((s, i) => <SlidePreview key={i} slide={s} />)}
+                        </div>
+                      )}
                     </div>
                   );
                 })}

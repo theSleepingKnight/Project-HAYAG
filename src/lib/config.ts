@@ -51,3 +51,30 @@ export const EMPTY_GROUPS_STATE = {
   "Group B": [],
   "Group C": []
 };
+
+// ── Quarter label helpers ─────────────────────────────────────────────────────
+
+/**
+ * Expands a quarter code to a full ordinal form.
+ * "Q1" | "First Quarter" | "1" → "First Quarter"
+ * "Q2" → "Second Quarter", etc.
+ */
+export function formatQuarterLabel(q: string): string {
+  const num = q.match(/\d/)?.[0] || '1';
+  const labels: Record<string, string> = {
+    '1': 'First Quarter',
+    '2': 'Second Quarter',
+    '3': 'Third Quarter',
+    '4': 'Fourth Quarter',
+  };
+  return labels[num] ?? `Quarter ${num}`;
+}
+
+/**
+ * Returns the long monitoring report title.
+ * e.g. "Q1" → "First Quarter Monitoring Report"
+ */
+export function formatQuarterTitle(q: string): string {
+  return `${formatQuarterLabel(q)} Monitoring Report`;
+}
+

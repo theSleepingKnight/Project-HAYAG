@@ -7,7 +7,7 @@
   display: flex;
   flex-direction: column;
   position: relative;
-  font-family: Arial, sans-serif;
+  font-family: Helvetica, Arial, sans-serif;
   font-size: 24px;
   box-sizing: border-box;
 }
@@ -34,7 +34,7 @@
 }
 
 .dividerTitle {
-  font-family: Arial, sans-serif;
+  font-family: Helvetica, Arial, sans-serif;
   font-size: 20pt;          /* FIX: Reduced from 32pt */
   font-weight: 800;
   text-transform: uppercase;
@@ -44,7 +44,7 @@
 }
 
 .dividerQuarter {
-  font-family: Arial, sans-serif;
+  font-family: Helvetica, Arial, sans-serif;
   font-size: 28pt;          /* FIX: Enlarged for emphasis */
   font-weight: 900;
   color: #FFD700;           /* DepEd Gold */
@@ -52,13 +52,12 @@
 }
 
 .dividerSdoList {
-  font-size: 14pt;          /* FIX: Smaller font for 1-line display */
+  font-size: 14pt;
   color: rgba(255, 255, 255, 0.85);
   max-width: 95%;
   margin: 0 auto;
-  white-space: nowrap;      /* FIX: 1 Line only */
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  line-height: 1.5;
   letter-spacing: 0.05em;
 }
 
@@ -110,39 +109,103 @@
 .comparisonTable thead th {
   background: var(--deped-navy);
   color: #ffffff;
-  padding: 0.45rem 0.15rem;  /* Even tighter padding for long SDO names */
-  font-family: Arial, sans-serif;
+  padding: 0.35rem 0.1rem;
+  font-family: Helvetica, Arial, sans-serif;
   font-size: 0.55rem;
   text-align: center;
   vertical-align: middle;
   border: 1px solid rgba(255, 255, 255, 0.2);
+  white-space: normal;
+  word-break: break-word;
+}
+
+.sdoPrefix {
+  font-size: 0.45rem;
+  opacity: 0.8;
+  display: block;
+  font-weight: 400;
+  margin-bottom: -1px;
+}
+
+.sdoMainName {
+  font-weight: 800;
+  line-height: 1.1;
 }
 
 /* FIX: Specific color-matched headers */
-.mainCol    { width: 38%; text-align: left !important; background: #1B365D !important; }
-.targetCol  { width: 9%; }
-.sdoCol     { width: 7%; }
-.remarksCol { width: 9%; text-align: left !important; background: #1B365D !important; }
+.mainCol    { width: 32%; text-align: center !important; background: #1B365D !important; }
+.targetCol  { width: 8%; }
+.sdoCol     { width: 8%; min-width: 80px; max-width: 100px; overflow: hidden; }
+.remarksCol { width: 9%; text-align: center !important; background: #1B365D !important; }
 
-/* ─── Program Spanning Row ──────────────────────────────────────────────────── */
+/* ─── Division Label Row (above classification) ────────────────────────────── */
+.divisionCell {
+  background: #112240;        /* Slightly darker navy to differentiate */
+  color: #FFD700;             /* DepEd Gold */
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 0.3rem 0.6rem;
+  border: 2px solid #0a1a32;
+  border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+/* ─── Program / Classification Row ─────────────────────────────────────────── */
 .programCell {
   background: #1B365D;
-  color: #FFD700;
-  font-family: Arial, sans-serif;
-  font-size: 20px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 0.5rem 0.6rem;
+  font-family: Helvetica, Arial, sans-serif;
+  padding: 0.4rem 0.6rem;
   border: 2px solid #0f2240;
+}
+
+/* Acronym / short title base — DepEd Gold. Inline acronyms will override to White. */
+.programTitle {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #FFD700;
+  line-height: 1.3;
+}
+
+/* Expanded definition — natural mixed case, muted gold; acrostic letters are white */
+.programDefinition {
+  font-size: 16px;
+  font-weight: 400;
+  font-style: normal;
+  text-transform: none !important;   /* Never uppercase — casing is handled in JS */
+  color: rgba(255, 215, 0, 0.65);
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+  margin-top: 3px;
+}
+
+/* Expanded definition flowing naturally without stacked lines */
+.programDefinitionFlowing {
+  font-size: 18px;
+  font-weight: 400;
+  font-style: normal;
+  text-transform: none !important;
+  color: rgba(255, 215, 0, 0.8);
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+/* Acrostic emphasis — the letters that spell the acronym, render in WHITE so they pop */
+.acrosticEmphasis {
+  color: #ffffff;
+  font-weight: 900;
+  display: inline-block;
+  text-transform: uppercase !important;
 }
 
 /* ─── Indicator Group Label Row (Outcome / Output Indicator(s)) ─────────────── */
 .groupLabelCell {
   background: #f3e8ff;
   color: #6b21a8;
-  font-family: Arial, sans-serif;
-  font-size: 20px;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 18px;
   font-style: italic;
   font-weight: 700;
   padding: 0.4rem 0.6rem;
@@ -166,8 +229,8 @@
   padding: 0.5rem 0.6rem;
   border: 1.5px solid #1b365d; /* FIX: Borders on EVERYTHING inside */
   color: var(--deped-navy);
-  font-family: Arial, sans-serif;
-  font-size: 20px;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 18px;
   font-weight: 700;
   vertical-align: middle;
   line-height: 1.4;
@@ -179,47 +242,56 @@
   border-left: 8px solid #3b82f6 !important; /* Emphasized blue border */
   font-style: italic;
   color: #1e3a8a !important;
-  font-size: 19px !important;
+  font-size: 18px !important;
 }
 
 .targetCell {
   padding: 0.4rem 0.3rem;
   border: 1.5px solid #1b365d; /* FIX: Borders on EVERYTHING inside */
   text-align: center;
-  font-family: Arial, sans-serif;
-  font-size: 20px;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 18px;
   font-weight: 700;
   color: #334155;
   vertical-align: middle;
 }
 
 .sdoCell {
-  padding: 0.4rem 0.25rem;
-  border: 1.5px solid #1b365d; /* FIX: Borders on EVERYTHING inside */
+  padding: 0.4rem 0.2rem;
+  border: 1.5px solid #1b365d;
   text-align: center;
   vertical-align: middle;
-  font-family: Arial, sans-serif;
-  font-size: 20px;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  overflow: hidden;
+  max-width: 100px;
 }
 
 .sdoValue {
   font-weight: 800;
-  font-size: 19px;
+  font-size: 16px;
+  line-height: 1.25;
   display: block;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
 }
 
 .fraction {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 400;
   color: #64748b;
-  margin-top: 1px;
+  margin-top: 2px;
 }
 
 .remarksCell {
   padding: 0.4rem 0.5rem;
   border: 1.5px solid #1b365d; /* FIX: Borders on EVERYTHING inside */
   color: #475569;
-  font-family: Arial, sans-serif;
+  font-family: Helvetica, Arial, sans-serif;
   font-size: 16px;
   font-style: italic;
   line-height: 1.35;
@@ -230,7 +302,7 @@
 /* ─── Not Available Placeholder ────────────────────────────────────────────── */
 .na {
   color: #cbd5e1;
-  font-family: Arial, sans-serif;
+  font-family: Helvetica, Arial, sans-serif;
   font-size: 16px;
   font-style: italic;
   font-weight: 400;
@@ -253,8 +325,8 @@
   border-left: 6px solid #c084fc;
   background: #fdf4ff;
   color: #581c87;
-  font-family: Arial, sans-serif;
-  font-size: 20px;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 18px;
   font-style: italic;
   font-weight: 800;
   text-align: left;
@@ -272,27 +344,27 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-family: Arial, sans-serif;
-  font-size: 16px;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 22px;
   line-height: 1.2;
 }
 
 .targetLabel {
   color: #94a3b8;
   font-weight: 500;
-  font-size: 14px;
+  font-size: 16px;
   min-width: 20px;
 }
 
 .targetNum {
   font-weight: 700;
   color: #1e293b;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .targetTotal {
-  font-family: Arial, sans-serif;
-  font-size: 18px;
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 22px;
   font-weight: 800;
   color: #1B365D;
   border-top: 1px solid #cbd5e1;

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import styles from './DownloadModal.module.css';
+import { formatQuarterTitle } from '@/lib/config';
 
 export interface PdfFormData {
   date: string;
@@ -67,7 +68,7 @@ export default function DownloadModal({
           <div className={styles.headerIcon}>📄</div>
           <div>
             <h2 className={styles.title}>Generate PDF Report</h2>
-            <p className={styles.subtitle}>{groupName} — {quarter} Monitoring Report</p>
+            <p className={styles.subtitle}>{groupName} — {formatQuarterTitle(quarter)}</p>
           </div>
         </div>
 

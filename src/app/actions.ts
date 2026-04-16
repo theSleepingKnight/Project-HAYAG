@@ -2,6 +2,7 @@
 
 import { google } from 'googleapis';
 import { headers } from 'next/headers';
+import { kv } from '@vercel/kv';
 import { extractSpreadsheetId } from '@/lib/google-sheets';
 
 export interface SheetMap {
@@ -17,7 +18,7 @@ export interface DetectionResult {
   message?: string;
 }
 
-// In-memory store for rudimentary IP-based rate limiting
+// In-memory store for rudimentary IP-based rate limiting (Fallback for local dev)
 const detectionRateLimits = new Map<string, number>();
 
 async function getSheetsClient() {
@@ -70,11 +71,23 @@ async function getSheetsClient() {
 }
 
 export async function detectSheetFeatures(url: string): Promise<DetectionResult> {
-  // --- Rate Limiting Logic (5 seconds) ---
   const headersList = await headers();
   const ip = headersList.get('x-forwarded-for') || 'unknown-ip';
   const now = Date.now();
-  const lastCall = detectionRateLimits.get(ip) || 0;
+  let lastCall = 0;
+
+  // 1. Try Vercel KV (Persistent for Production)
+  if (process.env.KV_REST_API_URL) {
+    try {
+      lastCall = await kv.get<number>(`rl_${ip}`) || 0;
+    } catch (e) {
+      console.warn("KV Access failed, falling back to memory:", e);
+      lastCall = detectionRateLimits.get(ip) || 0;
+    }
+  } else {
+    // 2. Fallback to In-Memory (Local Development)
+    lastCall = detectionRateLimits.get(ip) || 0;
+  }
   
   if (now - lastCall < 5000) {
     const remainingSeconds = Math.ceil((5000 - (now - lastCall)) / 1000);
@@ -84,7 +97,15 @@ export async function detectSheetFeatures(url: string): Promise<DetectionResult>
       message: `Cooldown active. Please wait ${remainingSeconds}s before extracting again.`
     };
   }
-  detectionRateLimits.set(ip, now);
+
+  // Update Rate Limit
+  if (process.env.KV_REST_API_URL) {
+    // Set with 30s expiration (self-cleaning)
+    await kv.set(`rl_${ip}`, now, { ex: 30 }).catch(() => {});
+  } else {
+    detectionRateLimits.set(ip, now);
+  }
+
   // ----------------------------------------
 
   const id = extractSpreadsheetId(url);
@@ -106,7 +127,10 @@ export async function detectSheetFeatures(url: string): Promise<DetectionResult>
     
     // Pattern Match for mandatory and SDO tabs
     const foundSheets: SheetMap = {
-      prexc: titles.find(t => t.toUpperCase().includes('PREXC')) || null,
+      prexc: titles.find(t => {
+        const up = t.toUpperCase();
+        return up.includes('PREXC') && !up.includes('NON-PREXC') && !up.includes('NON PREXC');
+      }) || null,
       nonPrexc: titles.find(t => t.toUpperCase().includes('NON-PREXC')) || null,
     };
 

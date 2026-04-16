@@ -19,8 +19,8 @@
   --slate-900: #0F172A;
 
   /* Typography */
-  --font-headings: 'Zilla Slab', serif;
-  --font-body: 'Inter', sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-headings: 'Inter', system-ui, -apple-system, sans-serif;
   
   /* Layout & Spacing */
   --page-max-width: 1200px;

@@ -15,18 +15,19 @@ function isLabelRow(text: string): boolean {
   return LABEL_PATTERNS.some((p) => p.test(text.trim()));
 }
 
-/** Matches "1. ...", "2. ...", "a. ...", "b. ...", or "- ..." */
+/** Matches "1. ...", "2. ...", "a. ...", "b. ...", or "- ...", as well as standard Indicator phrases. */
 function isDataRow(text: string): boolean {
   const t = text.trim();
-  // Starts with "1." or "a." or "-"
+  // Starts with "1.", "a.", "-", or standard metric keywords "Percentage", "Number", "Proportion"
+  if (/^(Percentage|Number|Proportion)\b/i.test(t)) return true;
   return /^([0-9a-zA-Z]+\.|-)/.test(t);
 }
 
 
 // ── Known non-program header strings ─────────────────────────────────────────
 const SKIP_ROW_PATTERNS = [
-  /^DepEd/i, /^PIR-RMETA/i, /^PREXC/i, /NON-PREXC/i, /^Concerned/i,
-  /^PPAs/i, /^Physical/i, /^Accomplishments/i, /^CO Target/i, /^RO Target/i, /^Indicators/i,
+  /^DepEd/i, /^PIR-RMETA/i, /^Concerned/i,
+  /^Physical/i, /^Accomplishments/i, /^CO Target/i, /^RO Target/i, /^Indicators/i,
 ];
 
 function isHeaderRow(text: string): boolean {
@@ -53,10 +54,15 @@ export function extractRealSheetData(sheetData: unknown[][], config: SheetConfig
     const colA = ((row[0] ?? '') as string).toString().trim();
     const colB = ((row[1] ?? '') as string).toString().trim();
     
-    const indicatorText = ((row[config.indicatorCol] ?? '') as string).toString().trim();
+    let indicatorText = ((row[config.indicatorCol] ?? '') as string).toString().trim();
+    
+    // Intelligent fallback for cell placement errors (e.g. human error moving text to Col A or B instead of C)
+    if (!indicatorText && (colA || colB)) {
+      indicatorText = colB || colA;
+    }
     
     // Skip if basically empty
-    if (!indicatorText && !colA && !colB) continue;
+    if (!indicatorText) continue;
     if (isHeaderRow(indicatorText) || isHeaderRow(colA)) continue;
 
     const programCandidate = indicatorText || colB || colA;
@@ -139,17 +145,21 @@ export function extractRealSheetData(sheetData: unknown[][], config: SheetConfig
         
         const isNextLetter = /^[a-z]\.\s/.test(nextText);
         const isNextDash   = /^-/.test(nextText);
+        const isNextMain   = /^([0-9]+\.|[A-Z]\.)/.test(nextText);
 
         const empty = !curr.annualTarget.total && Object.values(curr.sdoValues).every(v => !v.raw);
         
-        // Logic: A row is a parent if it's empty AND the next row is "deeper" or a different type
-        // 1. Main -> Letter (Standard)
+        // Logic: A row is a parent if it's empty AND the next row is a formal list item
+        // 1. Un-numbered descriptive row -> Letter or Number list (e.g. "Number of..." -> "1." or "a.")
+        if (empty && (isNextLetter || isNextMain || isNextDash) && !isCurrLetter && !isCurrDash && !isCurrMain) curr.isParentLabel = true;
+        // 2. Main number -> Letter (Standard)
         if (empty && isCurrMain && isNextLetter) curr.isParentLabel = true;
-        // 2. Letter -> Dash (Nested)
+        // 3. Letter -> Dash (Nested)
         if (empty && isCurrLetter && isNextDash) curr.isParentLabel = true;
-        // 3. Exception: If both are same level, NOT a parent label
+        // 4. Exception: Same-level items are NOT parent labels
         if (isCurrLetter && isNextLetter) curr.isParentLabel = false;
         if (isCurrDash && isNextDash) curr.isParentLabel = false;
+        if (isCurrMain && isNextMain) curr.isParentLabel = false;
       }
     }
   }

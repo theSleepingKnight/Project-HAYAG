@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { saveAs } from 'file-saver';
+import { formatQuarterLabel } from './config';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 const A4_W_PX  = 1122;   // A4 landscape at 96 DPI (841.89pt × 96/72)
@@ -78,10 +79,19 @@ export async function generateHAYAGPdf(
 
     const totalCssPx = fullCanvas.height / SCALE;
     const allRows  = tbody ? Array.from(tbody.querySelectorAll('tr')) as HTMLElement[] : [];
-    const rowBounds = allRows.map(r => ({
-      top:    getOffsetFromAncestor(r, slide),
-      bottom: getOffsetFromAncestor(r, slide) + r.offsetHeight,
-    }));
+    
+    // Tag header rows by their data-row-type attribute so the splitter
+    // can avoid stranding them alone at the bottom of a page.
+    const HEADER_TYPES = new Set(['division-header', 'program-header', 'group-label', 'parent-label']);
+    const headerRowBottoms = new Set<number>();
+    
+    const rowBounds = allRows.map(r => {
+      const top    = getOffsetFromAncestor(r, slide);
+      const bottom = top + r.offsetHeight;
+      const rowType = r.getAttribute('data-row-type') || '';
+      if (HEADER_TYPES.has(rowType)) headerRowBottoms.add(bottom);
+      return { top, bottom };
+    });
 
     const p1MaxPx = (pdfH - 2 * MARGIN - FOOTER_H) / ratio;
     pdf.addPage();
@@ -92,7 +102,7 @@ export async function generateHAYAGPdf(
     } else {
       await renderSlideMultiPage(
         pdf, fullCanvas, hOffsetPx, hHeightPx, scaledHPt, ratio,
-        pdfW, pdfH, totalCssPx, rowBounds, filename
+        pdfW, pdfH, totalCssPx, rowBounds, headerRowBottoms, filename
       );
     }
   }
@@ -138,6 +148,7 @@ function drawThankYouPage(
   roundedRect(pdf, centerX - boxW / 2, 260, boxW, boxH, 12);
   
   pdf.setTextColor(27, 54, 93);
+  pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(54);
   pdf.text('Thank you', centerX, 322, { align: 'center' });
 }
@@ -175,6 +186,7 @@ function drawCoverPage(
   roundedRect(pdf, centerX - boxW / 2, 260, boxW, boxH, 12);
   
   pdf.setTextColor(27, 54, 93);
+  pdf.setFont('helvetica', 'bold');
   pdf.setFontSize(54);
   pdf.text('PIR REVIEW', centerX, 322, { align: 'center' });
 
@@ -240,14 +252,16 @@ async function renderSlideMultiPage(
   pdf: jsPDF, full: HTMLCanvasElement, 
   hOff: number, hH: number, hPt: number, rat: number,
   pdfW: number, pdfH: number, cssH: number,
-  rb: Array<{top:number, bottom:number}>, fn: string
+  rb: Array<{top:number, bottom:number}>,
+  headerRowBottoms: Set<number>,
+  fn: string
 ) {
   const p1Max = (pdfH - 2 * MARGIN - FOOTER_H) / rat;
   const cMax  = (pdfH - 2 * MARGIN - hPt - FOOTER_H) / rat;
   const dW    = pdfW - 2 * MARGIN;
 
   let pageNum = 1;
-  const p1Split = findSplit(rb, 0, p1Max, cssH);
+  const p1Split = findSplit(rb, 0, p1Max, cssH, headerRowBottoms);
     
   drawPageFooter(pdf, pdfW, pdfH, MARGIN, fn, pageNum);
   const destH1 = drawSlice(pdf, full, 0, p1Split, SCALE, MARGIN, MARGIN, rat, dW);
@@ -260,7 +274,7 @@ async function renderSlideMultiPage(
     const remaining = rb.filter(r => r.top >= cur);
     if (remaining.length === 0) break;
 
-    const split = findSplit(rb, cur, cur + cMax, cssH);
+    const split = findSplit(rb, cur, cur + cMax, cssH, headerRowBottoms);
     if (split <= cur + 1) break;
 
     pdf.addPage();
@@ -291,10 +305,23 @@ function drawThickBottomBorder(pdf: jsPDF, x: number, y: number, w: number) {
   pdf.line(x, y, x + w, y);
 }
 
-function findSplit(rb: Array<{top:number, bottom:number}>, cur: number, max: number, tot: number) {
+function findSplit(
+  rb: Array<{top:number, bottom:number}>,
+  cur: number, max: number, tot: number,
+  headerRowBottoms: Set<number> = new Set()
+) {
   let s = Math.min(max, tot);
   for (const r of rb) if (r.top >= cur && r.bottom <= max) s = r.bottom;
   if (s <= cur) s = Math.min(max, tot);
+
+  // Backtrack: if the chosen split point ends exactly on a header row,
+  // pull back to the row BEFORE the header so it lands on the next page.
+  while (headerRowBottoms.has(s) && s > cur) {
+    const prev = rb.filter(r => r.bottom < s && r.top >= cur);
+    if (prev.length === 0) break;
+    s = prev[prev.length - 1].bottom;
+  }
+
   return s;
 }
 
@@ -330,11 +357,7 @@ function robustDate(ds: string) {
   return d.toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-function formatQuarterLabel(q: string) {
-  const qNum = q.match(/\d/)?.[0] || '1';
-  const ordinals: Record<string, string> = { '1': '1st', '2': '2nd', '3': '3rd', '4': '4th' };
-  return `${ordinals[qNum] || qNum} Quarter`;
-}
+
 
 function roundedRect(pdf: jsPDF, x: number, y: number, w: number, h: number, r: number) {
   const k = r * (4/3) * (Math.sqrt(2) - 1);

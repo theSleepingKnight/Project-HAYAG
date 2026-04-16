@@ -95,7 +95,7 @@ export function useExtraction() {
           sectionLabel = 'NON-PREXC (NON-PROGRAM EXPENDITURE)';
         } else {
           tabName = section;
-          sectionLabel = `NON-PREXCY (${section})`;
+          sectionLabel = `NON-PREXC (${section})`;
         }
         
         if (!tabName) {

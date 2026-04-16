@@ -79,16 +79,11 @@ export function buildDynamicConfig(sheetData: unknown[][], tabName: string, quar
       'Zamboanga del Norte', 'Zamboanga del Sur', 'Zamboanga Sibugay', 'Sulu'
     ];
 
-    // 1. Find the start column for the selected Quarter in Row 3
-    let startCol = 17; // Default to R (index 17) for PREXC
-    const row3 = sheetData[2] || [];
-    for (let c = 0; c < row3.length; c++) {
-      const val = (row3[c] ?? '').toString().toUpperCase();
-      if (val.includes(targetHeaderPrefix)) {
-        startCol = c;
-        break;
-      }
-    }
+    // For now, exactly pull SDO physical targets from Columns G to O (indices 6 to 14)
+    let startCol = 6; 
+    
+    // We do NOT scan for targetHeaderPrefix (ACCOMPLISHMENTS) anymore for PREXC 
+    // because the user wants to pull the shared targets starting from Col G.
 
     // 2. Scan Row 4 (SDO names) starting from the quarter's start column
     const row4 = sheetData[3] || [];
@@ -113,19 +108,16 @@ export function buildDynamicConfig(sheetData: unknown[][], tabName: string, quar
     }
   }
 
-  // 3. Robust Target Scanning in header rows (Look for keywords instead of exact match)
-  for (let r = 0; r < Math.min(sheetData.length, 6); r++) {
-    const row = sheetData[r] || [];
-    for (let c = 0; c < row.length; c++) {
-      const v = (row[c] ?? '').toString().trim().toUpperCase();
-      
-      // Look for "TARGET" + "(CO)" or "(RO)" in any combination
-      if (v.includes('TARGET')) {
-        if (v.includes('(CO)') || v === 'CO TARGET' || (v.includes('CO') && !v.includes('SDO'))) {
-           config.coTargetCol = c;
-        }
-        if (v.includes('(RO)') || v === 'RO TARGET' || (v.includes('RO') && !v.includes('SDO'))) {
-           config.roTargetCol = c;
+  // ─── Global REMARKS scan: check ALL header rows (0-6) across ALL columns ───
+  // This overrides any default and ensures REMARKS is always mapped correctly
+  // even if the user adds/removes columns in the Google Sheet.
+  if (!isSdoTab) {
+    for (let r = 0; r < Math.min(sheetData.length, 6); r++) {
+      const row = sheetData[r] || [];
+      for (let c = 0; c < row.length; c++) {
+        const v = (row[c] ?? '').toString().trim().toUpperCase();
+        if (v === 'REMARKS' || v === 'REMARKS (RO TARGET)' || v === 'REMARKS (RO)') {
+          config.remarksCol = c;
         }
       }
     }
