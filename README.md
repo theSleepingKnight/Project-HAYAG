@@ -6,12 +6,20 @@ Project HAYAG is a specialized reporting and data extraction system designed for
 
 ## Core Features
 
-- **Live Google Sheets Integration**: Real-time data extraction using the Google Visualization (GViz) API to ensure reports always reflect the latest spreadsheet updates.
-- **Hierarchical Data Parsing**: Advanced scanner that identifies Programs, Outcome Indicators, and Output Indicators from complex spreadsheet structures.
-- **Dynamic SDO Grouping**: Ability to group Schools Division Offices (SDOs) for targeted reporting and analysis.
+- **Live Google Sheets Integration**: Real-time data extraction using the Google Sheets API to ensure reports always reflect the latest spreadsheet updates.
+- **Hierarchical Data Parsing**: Advanced scanner that identifies Programs, Outcome Indicators, and Output Indicators from complex spreadsheet structures with smart fallback detection.
+- **Dynamic SDO Performance Tracking**: Automatically calculates and displays SDO accomplishment percentages against Regional Office (RO) targets for individual reports.
+- **Smart Report Layout**: Intelligently handles table pagination in PDF exports, ensuring headers and data stay grouped across page breaks.
 - **Professional PDF Engine**: Custom-built, row-aware PDF generator with DepEd Region IX branding.
-- **Editable PPTX Export**: Generates professional PowerPoint presentations with real, editable tables and automatic pagination.
-- **Interactive Report Configuration**: A dedicated interface to input presentation dates, locations, and agenda items before document finalization.
+- **Persistent Rate Limiting**: Built-in protection against API over-usage using Vercel KV/Redis for secure production deployments.
+
+## Deployment Requirements
+
+To deploy Project HAYAG to a production environment (like Vercel), ensure the following are configured:
+
+1. **Google Service Account**: Set `GOOGLE_CLIENT_EMAIL` and `GOOGLE_PRIVATE_KEY` in your environment variables.
+2. **Vercel KV (Redis)**: Connect a KV instance via the Vercel Storage dashboard to enable persistent session and rate-limit tracking.
+3. **Domain Whitelisting**: Ensure your deployment domain is authorized in your Google Cloud Console.
 
 ## Getting Started
 
