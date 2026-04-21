@@ -113,8 +113,6 @@ export function extractRealSheetData(sheetData: unknown[][], config: SheetConfig
     // 3. Extract Indicator Data (Must start with a number/letter or be valid)
     if (indicatorText && (isDataRow(indicatorText) || indicatorText.length > 5)) {
       const sdoValues: Record<string, SdoValue> = {};
-      const roTargetRaw = row[config.roTargetCol];
-      
       for (const [name, idx] of Object.entries(config.sdoMap)) {
         const sdoTargetIdx = config.sdoTargetMap ? config.sdoTargetMap[name] : undefined;
         let effectiveTarget = row[config.roTargetCol]; // Default to regional target

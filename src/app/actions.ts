@@ -204,7 +204,8 @@ export async function fetchSheetData(
       // 3. Filter out hidden rows — check both manual hide (hiddenByUser) and filter hide (hidden).
       const filteredData = rows.filter((_, index) => {
         const meta = rowMetadata[index];
-        return meta?.hiddenByUser !== true && meta?.hidden !== true;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return meta?.hiddenByUser !== true && (meta as any)?.hidden !== true;
       });
       return {
         success: true,

@@ -53,17 +53,14 @@ function isDivisionQualifier(text: string): boolean {
 }
 
 // ── Acrostic-aware casing ─────────────────────────────────────────────────────
-const DEPED_ACRONYMS = new Set([
-  'SDO', 'SPED', 'ALS', 'MTB', 'CRLA', 'MOOE', 'JDVP', 'NC', 'CSM', 'JHS', 'SGC', 'YES-O', 'LRPO', 'DCP', 'ICT', 'TVL',
-  'GREAT', 'TEACH', 'SMART', 'LEARN', 'HEART', 'TRACE', 'RIZALISTANG',
-  'RAPID', 'MATH', 'PHIL', 'IRI'
-]);
+
 
 /**
  * Returns the text as-is to respect the user's input casing (ALL CAPS, Mixed, etc.)
  * while maintaining the structure needed for the AcrosticText renderer.
  */
-export function toAcrosticCase(text: string, acronym: string): string {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function toAcrosticCase(text: string, _acronym: string): string {
   // We no longer force Title Case. Users want the text to match the sheet exactly.
   // The AcrosticText component in SlidePreview.tsx will still handle 
   // the highlighting by performing its own case-insensitive matching.
@@ -130,7 +127,6 @@ export function parseProgramName(raw: string): ParsedProgram {
   const compoundMatch = text.match(/^([A-Z]{2,15})\s+-\s+([A-Z\s&-]+)\s*\((.+)\)\s*$/);
   if (compoundMatch) {
     const prefix   = compoundMatch[1];
-    const subTitle = compoundMatch[2].trim();
     const defPart  = compoundMatch[3].trim();
     return {
       division:   null,

@@ -35,12 +35,10 @@ export default function Home() {
   
   // New: Manual Scale Control
   const [previewScale, setPreviewScale] = useState<number>(0.8);
-  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    setIsMounted(true);
-    if (window.innerWidth < 641) {
-      setPreviewScale(1.0);
+    if (typeof window !== 'undefined' && window.innerWidth < 641) {
+      setTimeout(() => setPreviewScale(1.0), 0);
     }
   }, []);
 

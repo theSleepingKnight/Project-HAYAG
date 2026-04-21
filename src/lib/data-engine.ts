@@ -53,7 +53,7 @@ export function buildDynamicConfig(sheetData: unknown[][], tabName: string, quar
         config.sdoMap[`SDO ${s}`] = 17 + (i * 2);
       });
     } else {
-      let startCol = isNonPrexc ? 4 : 6; 
+      const startCol = isNonPrexc ? 4 : 6; 
       const row4 = sheetData[3] || [];
       for (let c = startCol; c < Math.min(row4.length, startCol + 40); c++) {
         const val = (row4[c] ?? '').toString().trim().toUpperCase();

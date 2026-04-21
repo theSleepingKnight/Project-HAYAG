@@ -4,7 +4,7 @@ import { extractRealSheetData } from '@/lib/data-engine-real';
 import { buildDynamicConfig, ProgramSection } from '@/lib/data-engine';
 import { mapToSlides, SlideData } from '@/lib/slide-mapper';
 
-import { SDO_RECOGNITION_MAP, getCanonicalSdoName } from '@/lib/config';
+import { getCanonicalSdoName } from '@/lib/config';
 
 export interface SheetInfo {
   spreadsheetId: string;
