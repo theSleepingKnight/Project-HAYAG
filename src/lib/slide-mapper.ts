@@ -58,6 +58,7 @@ export function mapToSlides(
     slides.push({
       type: 'data',
       quarter,
+      sectionTitle,
       groupName,
       sdosInThisSlide: sdos,
       programSections: programs,

@@ -1,36 +1,24 @@
+import { getCanonicalSdoName } from './config';
+
 /**
  * data-engine.ts — Shared types and utility functions for Project HAYAG
  */
 
-// ─── SDO Column Map (0-based) ───────────────────────────────────────────────
-// Columns confirmed from live sheet scan (gid=1210810679):
-//   SDO ACCOMPLISHMENTS are in Columns R–Z (indices 17–25):
-//     R(17) = Dapitan City
-//     S(18) = Dipolog City
-//     T(19) = Isabela City
-//     U(20) = Pagadian City
-//     V(21) = Sulu
-//     W(22) = Zamboanga City
-//     X(23) = Zamboanga del Norte
-//     Y(24) = Zamboanga del Sur
-//     Z(25) = Zamboanga Sibugay
-//
-//   NOTE: Columns G–O (indices 6–14) are SDO *physical targets* — do NOT use these.
 // ─── Sheet Configuration ───────────────────────────────────────────────────
 export interface SheetConfig {
-  indicatorCol: number;    // Where the text "1. Number of..." lives
-  labelCol:     number;    // Where "Outcome/Output Indicator" lives
-  coTargetCol:  number;    // Annual CO Target
-  roTargetCol:  number;    // Annual RO Target
-  remarksCol:   number;    // Quarterly accomplishment/explanation remarks
-  targetRemarksCol?: number; // Optional Physical target remarks (Col D)
+  indicatorCol: number;    
+  labelCol:     number;    
+  coTargetCol:  number;    
+  roTargetCol:  number;    
+  remarksCol:   number;    
+  targetRemarksCol?: number; 
   sdoMap: Record<string, number>;
+  sdoTargetMap?: Record<string, number>; // Optional SDO-specific target columns (e.g. G-O in PREXC)
 }
 
 export function buildDynamicConfig(sheetData: unknown[][], tabName: string, quarterStr: string): SheetConfig {
   const isNonPrexc = tabName.toUpperCase().includes('NON-PREXC') || tabName.toUpperCase().includes('-NP');
   const qNum = parseInt(quarterStr.match(/\d/)?.[0] || '1', 10);
-  const targetHeaderPrefix = `ACCOMPLISHMENTS (Q${qNum}`;
 
   const config: SheetConfig = {
     indicatorCol: isNonPrexc ? 1 : 2,
@@ -41,84 +29,48 @@ export function buildDynamicConfig(sheetData: unknown[][], tabName: string, quar
     sdoMap:       {},
   };
 
-  const isSdoTab = tabName.toUpperCase().includes('-NP');
+  const sdoName = getCanonicalSdoName(tabName);
+  const isSdoTab = !!sdoName;
 
-  if (isSdoTab) {
-    // Mapping for Individual SDO tabs (starting with Dapitan)
-    const upperTab = tabName.toUpperCase();
-    let sdoName = '';
-    
-    if (upperTab.includes('DAP')) sdoName = 'SDO Dapitan City';
-    else if (upperTab.includes('DIP')) sdoName = 'SDO Dipolog City';
-    else if (upperTab.includes('ISA')) sdoName = 'SDO Isabela City';
-    else if (upperTab.includes('PAG')) sdoName = 'SDO Pagadian City';
-    else if (upperTab.includes('ZAMC')) sdoName = 'SDO Zamboanga City';
-    else if (upperTab.includes('ZDN')) sdoName = 'SDO Zamboanga del Norte';
-    else if (upperTab.includes('ZDS')) sdoName = 'SDO Zamboanga del Sur';
-    else if (upperTab.includes('ZSP')) sdoName = 'SDO Zamboanga Sibugay';
-    else if (upperTab.includes('SUL')) sdoName = 'SDO Sulu';
-    
-    if (sdoName) {
-      // 1. Both Targets moved to Col C (Index 2)
-      config.coTargetCol = 2;
-      config.roTargetCol = 2;
-      
-      // 2. Physical Target Remarks is Col D (Index 3)
-      config.targetRemarksCol = 3;
-
-      // 3. Accomplishment Q1 -> Col E (4), Q2 -> Col G (6), etc.
-      config.sdoMap[sdoName] = 2 + (qNum * 2);
-      
-      // 4. Quarterly Remarks Q1 -> Col F (5), Q2 -> Col H (7), etc.
-      config.remarksCol = 2 + (qNum * 2) + 1;
-    }
+  if (isSdoTab && sdoName) {
+    config.coTargetCol = 2;
+    config.roTargetCol = 2;
+    config.targetRemarksCol = 3;
+    config.sdoMap[sdoName] = 2 + (qNum * 2);
+    config.remarksCol = 2 + (qNum * 2) + 1;
   } else {
-    // ─── Legacy scanning for Master PREXC/NON-PREXC ───
     const sdoKeys = [
       'Dapitan City', 'Dipolog City', 'Isabela City', 'Pagadian City', 'Zamboanga City', 
       'Zamboanga del Norte', 'Zamboanga del Sur', 'Zamboanga Sibugay', 'Sulu'
     ];
 
-    // For now, exactly pull SDO physical targets from Columns G to O (indices 6 to 14)
-    let startCol = 6; 
-    
-    // We do NOT scan for targetHeaderPrefix (ACCOMPLISHMENTS) anymore for PREXC 
-    // because the user wants to pull the shared targets starting from Col G.
-
-    // 2. Scan Row 4 (SDO names) starting from the quarter's start column
-    const row4 = sheetData[3] || [];
-    const searchLimit = startCol + 20; 
-    
-    for (let c = startCol; c < Math.min(row4.length, searchLimit); c++) {
-      const val = (row4[c] ?? '').toString().trim();
-      const valUp = val.toUpperCase();
-      if (!valUp) continue;
-
-      sdoKeys.forEach(s => {
-        if (valUp === s.toUpperCase() || valUp.includes(s.toUpperCase())) {
-          if (!config.sdoMap[`SDO ${s}`]) {
-            config.sdoMap[`SDO ${s}`] = c;
-          }
-        }
+    if (tabName.toUpperCase().includes('PREXC') && !isNonPrexc) {
+      config.sdoTargetMap = {};
+      sdoKeys.forEach((s, i) => {
+        // Targets: Columns G to O (Index 6 to 14)
+        config.sdoTargetMap![`SDO ${s}`] = 6 + i; 
+        // Accomplishments: Columns R to AI (Index 17, 19, 21...) skipping Remarks
+        config.sdoMap[`SDO ${s}`] = 17 + (i * 2);
       });
-
-      if (valUp === 'REMARKS') {
-        config.remarksCol = c; 
+    } else {
+      let startCol = isNonPrexc ? 4 : 6; 
+      const row4 = sheetData[3] || [];
+      for (let c = startCol; c < Math.min(row4.length, startCol + 40); c++) {
+        const val = (row4[c] ?? '').toString().trim().toUpperCase();
+        if (!val) continue;
+        sdoKeys.forEach(s => {
+          if (val === s.toUpperCase() || val.includes(s.toUpperCase())) {
+            if (!config.sdoMap[`SDO ${s}`]) config.sdoMap[`SDO ${s}`] = c;
+          }
+        });
       }
     }
-  }
 
-  // ─── Global REMARKS scan: check ALL header rows (0-6) across ALL columns ───
-  // This overrides any default and ensures REMARKS is always mapped correctly
-  // even if the user adds/removes columns in the Google Sheet.
-  if (!isSdoTab) {
-    for (let r = 0; r < Math.min(sheetData.length, 6); r++) {
+    for (let r = 3; r <= 5; r++) {
       const row = sheetData[r] || [];
       for (let c = 0; c < row.length; c++) {
-        const v = (row[c] ?? '').toString().trim().toUpperCase();
-        if (v === 'REMARKS' || v === 'REMARKS (RO TARGET)' || v === 'REMARKS (RO)') {
-          config.remarksCol = c;
-        }
+        const val = (row[c] ?? '').toString().trim().toUpperCase();
+        if (val === 'REMARKS') config.remarksCol = c;
       }
     }
   }
@@ -132,39 +84,29 @@ export interface SdoValue {
   raw: string;
   percentage: number | null;
   fraction: string | null;
-  numericValue: number | null; // Leading number for calculations
+  numericValue: number | null;
 }
 
-/**
- * Structured breakdown of Annual Physical Target.
- * Stored separately so the UI can render:
- *   CO: 8   RO: 8   Total: 16
- */
 export interface AnnualTarget {
-  co: string;    // Raw value from Col D (CO Target)
-  ro: string;    // Raw value from Col E (RO Target)
-  total: string; // Computed sum (if both numeric) or best single value
+  co: string;
+  ro: string;
+  total: string;
 }
 
-/** A single numbered/lettered indicator row (e.g. "1. Percentage of..." or "a. Elementary") */
 export interface IndicatorRow {
   text: string;
-  /** If true, this row is a parent heading (e.g. "1. Percentage of...") that has sub-items below it.
-   *  It should render as a left-aligned label span — no data columns. */
   isParentLabel: boolean;
   annualTarget: AnnualTarget;
   sdoValues: Record<string, SdoValue>;
-  remarks: string;       // Quarterly Accomplishment Remarks
-  targetRemarks: string; // Physical Target Remarks (Column D)
+  remarks: string;
+  targetRemarks: string;
 }
 
-/** A sub-classification group within a program (e.g. "Outcome Indicator(s)") */
 export interface IndicatorGroup {
   label: string;
   rows: IndicatorRow[];
 }
 
-/** A program block (e.g. "EDUCATION POLICY DEVELOPMENT PROGRAM") */
 export interface ProgramSection {
   programName: string;
   groups: IndicatorGroup[];
@@ -172,86 +114,85 @@ export interface ProgramSection {
 
 // ─── Utility Functions ───────────────────────────────────────────────────────
 
+/** 
+ * Safely extracts a numeric value from a string, 
+ * handling ratios like "1:25" by taking the part after the colon.
+ */
+function extractNumeric(s: string): number | null {
+  const clean = s.replace(/,/g, '').trim();
+  if (!clean) return null;
+  
+  // Ratio handling: "1:25" -> 25 (use denominator)
+  if (clean.includes(':')) {
+    const parts = clean.split(':');
+    const val = parseFloat(parts[parts.length - 1]);
+    return isNaN(val) ? null : val;
+  }
+
+  // Parenthetical format: "(5.47%) - 466" or "(134/158)" -> extract first number inside parens
+  if (clean.startsWith('(')) {
+    const parenMatch = clean.match(/^\((\d+\.?\d*)/);
+    if (parenMatch) {
+      const val = parseFloat(parenMatch[1]);
+      return isNaN(val) ? null : val;
+    }
+  }
+  
+  // Normal number / percentage: "25%", "302", "90.23%"
+  const match = clean.match(/^(\d+\.?\d*)/);
+  const val = match ? parseFloat(match[1]) : null;
+  return (val !== null && !isNaN(val)) ? val : null;
+}
+
 /** Parse a raw cell value into a structured SdoValue */
-export function parseSdoValue(raw: unknown): SdoValue {
+export function parseSdoValue(raw: unknown, targetRaw?: unknown): SdoValue {
   const str = (raw ?? '').toString().trim();
+  const tgt = (targetRaw ?? '').toString().trim();
+  
   if (!str) return { raw: '', percentage: null, fraction: null, numericValue: null };
 
-  const percentMatch  = str.match(/(\d+\.?\d*)%/);
-  const fractionMatch = str.match(/\(([^)]+)\)/);
+  const actualVal = extractNumeric(str);
+  let calculatedPercentage: number | null = null;
   
-  // Clean string of commas before numeric match
-  const cleanStr = str.replace(/,/g, '');
-  const numMatch = cleanStr.match(/^(\d+\.?\d*)/); // Capture leading raw number
+  if (tgt && actualVal !== null) {
+    const targetVal = extractNumeric(tgt);
+    if (targetVal && targetVal > 0) {
+      // UTILIZATION LOGIC: (Actual / Target) * 100
+      calculatedPercentage = Math.round((actualVal / targetVal) * 100);
+    }
+  }
 
   return {
     raw: str,
-    percentage:  percentMatch  ? parseFloat(percentMatch[1])  : null,
-    fraction:    fractionMatch ? fractionMatch[1]              : null,
-    numericValue: numMatch     ? parseFloat(numMatch[1])      : null,
+    percentage: calculatedPercentage,
+    fraction: tgt || null,
+    numericValue: actualVal,
   };
 }
 
-/**
- * Calculates (Accomplishment / RO Target) % and formats it based on User Rules:
- * - Round to whole number by default.
- * - Keep precision for "Retention rate" or "Completion rate".
- */
 export function getAccomplishmentRate(actual: SdoValue | undefined, roTarget: string, indicatorText: string): string | null {
   if (!actual) return null;
-
-  // Clean comma separators from target string
-  const cleanTarget = roTarget.replace(/,/g, '');
-  const roNumMatch = cleanTarget.match(/^(\d+\.?\d*)/);
-  const targetVal = roNumMatch ? parseFloat(roNumMatch[1]) : null;
+  const targetVal = extractNumeric(roTarget);
   const actualVal = actual.numericValue;
 
   if (targetVal === null || actualVal === null || targetVal === 0) return null;
-
   const rate = (actualVal / targetVal) * 100;
-  
-  // Rule: Round off except for Retention or Completion rate
   const isSpecial = /retention|completion/i.test(indicatorText);
-  if (isSpecial) {
-    return rate.toFixed(1) + '%'; // 1 decimal place for precision
-  }
+  if (isSpecial) return rate.toFixed(1) + '%';
   return Math.round(rate) + '%';
 }
 
-/**
- * Compute Annual Physical Target from ColD (CO) and ColE (RO).
- * Returns an AnnualTarget object so the UI can show the breakdown.
- *
- * Display rules:
- *   - Both numeric → total = D + E
- *   - Only one present → total = that one
- *   - Neither → all empty strings
- */
 export function computeAnnualTarget(colD: unknown, colE: unknown): AnnualTarget {
   const co = (colD ?? '').toString().trim();
   const ro = (colE ?? '').toString().trim();
-
   if (!co && !ro) return { co: '', ro: '', total: '' };
+  
+  const dNum = extractNumeric(co);
+  const eNum = extractNumeric(ro);
 
-  const dNum = parseFloat(co);
-  const eNum = parseFloat(ro);
-
-  // Both are plain numbers → sum them
-  if (co && ro && !isNaN(dNum) && !isNaN(eNum) && !co.includes('%') && !ro.includes('%')) {
+  if (co && ro && dNum !== null && eNum !== null && !co.includes('%') && !ro.includes('%')) {
     const sum = dNum + eNum;
-    return {
-      co,
-      ro,
-      total: Number.isInteger(sum) ? String(sum) : sum.toFixed(2),
-    };
+    return { co, ro, total: Number.isInteger(sum) ? String(sum) : sum.toFixed(2) };
   }
-
-  // Only CO
-  if (co && !ro) return { co, ro: '', total: co };
-
-  // Only RO
-  if (!co && ro) return { co: '', ro, total: ro };
-
-  // Both present but non‑numeric (e.g. percentages) — keep as-is
-  return { co, ro, total: co };
+  return { co, ro: ro || '', total: ro || co };
 }

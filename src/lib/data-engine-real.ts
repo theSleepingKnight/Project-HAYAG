@@ -15,6 +15,16 @@ function isLabelRow(text: string): boolean {
   return LABEL_PATTERNS.some((p) => p.test(text.trim()));
 }
 
+/** 
+ * Cleans up cell text by identifying separated acronyms (e.g., "N A T" or "N-A-T") 
+ * and collapsing them into solid blocks (e.g., "NAT") while retaining ALL CAPS.
+ */
+export function collapseAcronyms(text: string): string {
+  if (!text) return text;
+  // Matches 2 or more standalone uppercase letters separated by spaces or hyphens.
+  return text.replace(/\b(?:[A-Z][ \-]+)+[A-Z]\b/g, match => match.replace(/[ \-]+/g, ''));
+}
+
 /** Matches "1. ...", "2. ...", "a. ...", "b. ...", or "- ...", as well as standard Indicator phrases. */
 function isDataRow(text: string): boolean {
   const t = text.trim();
@@ -51,10 +61,10 @@ export function extractRealSheetData(sheetData: unknown[][], config: SheetConfig
 
   for (let i = 0; i < sheetData.length; i++) {
     const row  = sheetData[i] || [];
-    const colA = ((row[0] ?? '') as string).toString().trim();
-    const colB = ((row[1] ?? '') as string).toString().trim();
+    const colA = collapseAcronyms(((row[0] ?? '') as string).toString().trim());
+    const colB = collapseAcronyms(((row[1] ?? '') as string).toString().trim());
     
-    let indicatorText = ((row[config.indicatorCol] ?? '') as string).toString().trim();
+    let indicatorText = collapseAcronyms(((row[config.indicatorCol] ?? '') as string).toString().trim());
     
     // Intelligent fallback for cell placement errors (e.g. human error moving text to Col A or B instead of C)
     if (!indicatorText && (colA || colB)) {
@@ -103,8 +113,20 @@ export function extractRealSheetData(sheetData: unknown[][], config: SheetConfig
     // 3. Extract Indicator Data (Must start with a number/letter or be valid)
     if (indicatorText && (isDataRow(indicatorText) || indicatorText.length > 5)) {
       const sdoValues: Record<string, SdoValue> = {};
+      const roTargetRaw = row[config.roTargetCol];
+      
       for (const [name, idx] of Object.entries(config.sdoMap)) {
-        sdoValues[name] = parseSdoValue(row[idx]);
+        const sdoTargetIdx = config.sdoTargetMap ? config.sdoTargetMap[name] : undefined;
+        let effectiveTarget = row[config.roTargetCol]; // Default to regional target
+
+        // If a dedicated SDO target column exists, strictly enforce its use (prevent falling back to the master RO target sum)
+        if (sdoTargetIdx !== undefined) {
+          const sdoTargetRaw = row[sdoTargetIdx];
+          const sdoTgtStr = (sdoTargetRaw ?? '').toString().trim();
+          effectiveTarget = (sdoTgtStr === '—' || sdoTgtStr === '-') ? '' : sdoTargetRaw;
+        }
+        
+        sdoValues[name] = parseSdoValue(row[idx], effectiveTarget);
       }
       // Capture both remarks without merging
       const targetRem = config.targetRemarksCol ? ((row[config.targetRemarksCol] ?? '') as string).toString().trim() : '';
@@ -139,25 +161,24 @@ export function extractRealSheetData(sheetData: unknown[][], config: SheetConfig
         const nextText = next.text.trim();
 
         // Indentation signatures
-        const isCurrMain = /^([0-9]+\.|[A-Z]\.)/.test(currText); // e.g. "1." or "A."
-        const isCurrLetter = /^[a-z]\.\s/.test(currText);         // e.g. "a."
+        const isCurrMain = /^([0-9]+\.|[A-Z]\.)(?![a-zA-Z0-9])/.test(currText); // e.g. "1." or "A." (but not "1.1" or "1.b")
+        const isCurrSubItem = /^([a-z]\.(?:[a-zA-Z0-9]{1,2}\.?)*|\d+(?:\.[a-zA-Z0-9]{1,2})+\.?)\s/.test(currText); // e.g. "a.", "1.1", "2.b", "2.b.1"
         const isCurrDash   = /^-/.test(currText);                // e.g. "-"
         
-        const isNextLetter = /^[a-z]\.\s/.test(nextText);
+        const isNextSubItem = /^([a-z]\.(?:[a-zA-Z0-9]{1,2}\.?)*|\d+(?:\.[a-zA-Z0-9]{1,2})+\.?)\s/.test(nextText);
         const isNextDash   = /^-/.test(nextText);
-        const isNextMain   = /^([0-9]+\.|[A-Z]\.)/.test(nextText);
+        const isNextMain   = /^([0-9]+\.|[A-Z]\.)(?![a-zA-Z0-9])/.test(nextText);
 
         const empty = !curr.annualTarget.total && Object.values(curr.sdoValues).every(v => !v.raw);
         
         // Logic: A row is a parent if it's empty AND the next row is a formal list item
-        // 1. Un-numbered descriptive row -> Letter or Number list (e.g. "Number of..." -> "1." or "a.")
-        if (empty && (isNextLetter || isNextMain || isNextDash) && !isCurrLetter && !isCurrDash && !isCurrMain) curr.isParentLabel = true;
+        if (empty && (isNextSubItem || isNextMain || isNextDash) && !isCurrSubItem && !isCurrDash && !isCurrMain) curr.isParentLabel = true;
         // 2. Main number -> Letter (Standard)
-        if (empty && isCurrMain && isNextLetter) curr.isParentLabel = true;
+        if (empty && isCurrMain && isNextSubItem) curr.isParentLabel = true;
         // 3. Letter -> Dash (Nested)
-        if (empty && isCurrLetter && isNextDash) curr.isParentLabel = true;
+        if (empty && isCurrSubItem && isNextDash) curr.isParentLabel = true;
         // 4. Exception: Same-level items are NOT parent labels
-        if (isCurrLetter && isNextLetter) curr.isParentLabel = false;
+        if (isCurrSubItem && isNextSubItem) curr.isParentLabel = false;
         if (isCurrDash && isNextDash) curr.isParentLabel = false;
         if (isCurrMain && isNextMain) curr.isParentLabel = false;
       }

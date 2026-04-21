@@ -60,29 +60,14 @@ const DEPED_ACRONYMS = new Set([
 ]);
 
 /**
- * Converts definition text to visually balanced Title Case.
- * Preserves the main program acronym and other known DepEd acronyms as ALL CAPS.
+ * Returns the text as-is to respect the user's input casing (ALL CAPS, Mixed, etc.)
+ * while maintaining the structure needed for the AcrosticText renderer.
  */
 export function toAcrosticCase(text: string, acronym: string): string {
-  // We apply Title Case consistently to make it clean and balanced.
-  return text
-    .split(/([\s\-/().,:]+)/)
-    .map(token => {
-      // Return delimiters/whitespace as-is
-      if (!token || /^[\s\-/().,:]+$/.test(token)) return token;
-
-      const upperToken = token.toUpperCase();
-      
-      // Preserve the specific program acronym
-      if (acronym && upperToken === acronym.toUpperCase()) return upperToken;
-      
-      // Preserve known common DepEd acronyms
-      if (DEPED_ACRONYMS.has(upperToken)) return upperToken;
-
-      // Title Case: First letter capital, the rest lower
-      return token.charAt(0).toUpperCase() + token.slice(1).toLowerCase();
-    })
-    .join('');
+  // We no longer force Title Case. Users want the text to match the sheet exactly.
+  // The AcrosticText component in SlidePreview.tsx will still handle 
+  // the highlighting by performing its own case-insensitive matching.
+  return text;
 }
 
 // ── Public types ──────────────────────────────────────────────────────────────

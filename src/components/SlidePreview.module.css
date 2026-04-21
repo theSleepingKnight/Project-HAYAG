@@ -192,12 +192,13 @@
   margin-top: 4px;
 }
 
-/* Acrostic emphasis — the letters that spell the acronym, render in WHITE so they pop */
 .acrosticEmphasis {
   color: #ffffff;
   font-weight: 900;
   display: inline-block;
   text-transform: uppercase !important;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 /* ─── Indicator Group Label Row (Outcome / Output Indicator(s)) ─────────────── */

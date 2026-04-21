@@ -77,22 +77,22 @@ export default function GeneratorOptions({
       </div>
 
       {/* 1. Quarter Selector */}
-      <div className={styles.section}>
-        <span className={styles.label}>Select Monitoring Quarter</span>
-        <div className={styles.buttonGrid}>
-          {['Q1', 'Q2', 'Q3', 'Q4'].map((q) => {
-            return (
-              <button
-                key={q}
-                className={`${styles.optionBtn} ${activeQuarter === q ? styles.active : ''}`}
-                onClick={() => handleQuarterSwitch(q)}
-              >
-                <div>{q === 'Q1' ? 'First' : q === 'Q2' ? 'Second' : q === 'Q3' ? 'Third' : 'Fourth'} Quarter</div>
-              </button>
-            );
-          })}
+        <div className={styles.section}>
+          <span className={styles.label}>Select Monitoring Quarter</span>
+          <div className={styles.buttonGrid}>
+            {['Q1', 'Q2', 'Q3', 'Q4'].map((q) => {
+              return (
+                <button
+                  key={q}
+                  className={`${styles.optionBtn} ${activeQuarter === q ? styles.active : ''}`}
+                  onClick={() => handleQuarterSwitch(q)}
+                >
+                  <div>{q === 'Q1' ? 'First' : q === 'Q2' ? 'Second' : q === 'Q3' ? 'Third' : 'Fourth'} Quarter</div>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
 
     </div>
   );

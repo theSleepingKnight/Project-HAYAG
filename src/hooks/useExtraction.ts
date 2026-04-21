@@ -4,7 +4,7 @@ import { extractRealSheetData } from '@/lib/data-engine-real';
 import { buildDynamicConfig, ProgramSection } from '@/lib/data-engine';
 import { mapToSlides, SlideData } from '@/lib/slide-mapper';
 
-import { SDO_RECOGNITION_MAP } from '@/lib/config';
+import { SDO_RECOGNITION_MAP, getCanonicalSdoName } from '@/lib/config';
 
 export interface SheetInfo {
   spreadsheetId: string;
@@ -52,20 +52,16 @@ export function useExtraction() {
     if (section === 'prexc' || section === 'nonPrexc' || section === 'master') return baseGroups;
     
     // Check if section name matches any known SDO pattern
-    let singleSdoName = section;
-    for (const [key, fullName] of Object.entries(SDO_RECOGNITION_MAP)) {
-      if (section.includes(key)) {
-        singleSdoName = fullName;
-        break;
-      }
-    }
-    
-    return { 'Individual Report': [singleSdoName] };
+    const singleSdoName = getCanonicalSdoName(section);
+    return { 'Individual Report': [singleSdoName || section] };
   };
 
   const loadSectionData = useCallback(
     async (info: SheetInfo, section: string, baseGroups: Record<string, string[]>, quarter: string) => {
+      // 1. Immediately wipe previous data to prevent "stale" views
+      setGroupSlides({});
       setIsLoadingData(true);
+      
       const groups = getEffectiveGroups(section, baseGroups);
       
       try {
@@ -108,6 +104,7 @@ export function useExtraction() {
         if (result.success && result.data.length > 0) {
           const config = buildDynamicConfig(result.data as unknown[][], tabName, quarter);
           const extracted = extractRealSheetData(result.data as unknown[][], config);
+        
           rebuildSlides([{ progs: extracted, label: sectionLabel }], groups, quarter);
         }
       } finally {

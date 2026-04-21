@@ -37,7 +37,7 @@ function AcrosticText({ text, acronym }: { text: string; acronym: string }) {
         if ((acronym && upperToken === acronym.toUpperCase()) || REGIONAL_ACRONYMS.has(upperToken)) {
            return (
             <span key={ti} className={styles.acrosticEmphasis}>
-              {upperToken}
+              {token}
             </span>
           );
         }
@@ -89,8 +89,12 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
   }
 
   // ── DATA SLIDE ─────────────────────────────────────────────────────────────
-  const { quarter, groupName, sdosInThisSlide, programSections } = slide;
-  const totalCols = 2 + sdosInThisSlide.length + 2;
+  const { quarter, groupName, sdosInThisSlide, programSections, sectionTitle } = slide;
+  
+  // Conditionally disable Target & Remarks columns for PREXC and setup split-column math
+  const isPrexcData = sectionTitle ? sectionTitle.toUpperCase().includes('PREXC') && !sectionTitle.toUpperCase().includes('NON') : false;
+  // If PREXC, each SDO is split into 2 columns (Target | Actual). Total = 1 (Indicator) + length * 2
+  const totalCols = isPrexcData ? (1 + sdosInThisSlide.length * 2) : (sdosInThisSlide.length + 4);
   const isIndividualSdoTab = groupName === 'Individual Report';
 
   return (
@@ -107,11 +111,15 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
           <table className={styles.comparisonTable}>
             <thead className={styles.tableHeaderGroup}>
               <tr className={styles.headerRow}>
-                <th className={styles.mainCol}>INDICATORS / PPAS</th>
-                <th className={styles.targetCol}>RO TARGET</th>
-                <th className={styles.remarksCol}>REMARKS (RO TARGET)</th>
+                <th className={styles.mainCol} rowSpan={isPrexcData ? 2 : 1}>INDICATORS / PPAS</th>
+                {!isPrexcData && (
+                  <>
+                    <th className={styles.targetCol}>TARGET</th>
+                    <th className={styles.remarksCol}>REMARKS (TARGET)</th>
+                  </>
+                )}
                 {sdosInThisSlide.map((sdo) => (
-                  <th key={sdo} className={styles.sdoCol}>
+                  <th key={sdo} className={styles.sdoCol} colSpan={isPrexcData ? 2 : 1}>
                     {sdo.includes('SDO ') ? (
                       <>
                         <span className={styles.sdoPrefix}>SDO</span>
@@ -121,8 +129,18 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                     ) : sdo}
                   </th>
                 ))}
-                <th className={styles.remarksCol}>REMARKS</th>
+                {!isPrexcData && <th className={styles.remarksCol}>REMARKS</th>}
               </tr>
+              {isPrexcData && (
+                <tr className={styles.headerRow}>
+                  {sdosInThisSlide.map((sdo) => (
+                    <React.Fragment key={`${sdo}-sub`}>
+                      <th className={styles.sdoCol} style={{ background: '#eab308', color: '#0f172a', fontSize: '0.65em', padding: '4px', borderTop: 'none', borderRight: '1px solid #1e293b' }}>TARGET</th>
+                      <th className={styles.sdoCol} style={{ background: '#f8fafc', color: '#0f172a', fontSize: '0.65em', padding: '4px', borderTop: 'none' }}>ACTUAL</th>
+                    </React.Fragment>
+                  ))}
+                </tr>
+              )}
             </thead>
             <tbody>
               {programSections.map((program) => {
@@ -174,7 +192,7 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
 
                         {/* Indicator data rows */}
                         {group.rows.map((row, ri) => {
-                          const isSubItem = /^[a-z]\.\s/.test(row.text.trim());
+                          const isSubItem = /^([a-z]\.(?:[a-zA-Z0-9]{1,2}\.?)*\s|\d+(?:\.[a-zA-Z0-9]{1,2})+\.?\s|-)/.test(row.text.trim());
 
                           // Parent label row — spans all columns
                           if (row.isParentLabel) {
@@ -195,13 +213,17 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                                 {row.text}
                               </td>
 
-                              <td className={styles.targetCell}>
-                                <AnnualTargetCell target={row.annualTarget} />
-                              </td>
+                              {!isPrexcData && (
+                                <>
+                                  <td className={styles.targetCell}>
+                                    <AnnualTargetCell target={row.annualTarget} />
+                                  </td>
 
-                              <td className={styles.remarksCell}>
-                                {row.targetRemarks || <span className={styles.na}>—</span>}
-                              </td>
+                                  <td className={styles.remarksCell}>
+                                    {row.targetRemarks || <span className={styles.na}>—</span>}
+                                  </td>
+                                </>
+                              )}
 
                               {sdosInThisSlide.map((sdo) => {
                                 const val = row.sdoValues[sdo];
@@ -225,29 +247,81 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
 
                                 const rate = isIndividualSdoTab ? getAccomplishmentRate(val, row.annualTarget.ro, row.text) : null;
 
-                                return (
-                                  <td key={sdo} className={styles.sdoCell} style={{ color: '#0f172a' }}>
-                                    {isEmpty ? (
-                                      <span className={styles.na}>—</span>
-                                    ) : (
-                                      <>
-                                        <div className={styles.sdoValue}>
-                                          {renderSdoValue(val.raw)}
-                                        </div>
-                                        {rate && (
-                                          <div style={{ color: '#dc2626', fontSize: '0.85em', marginTop: '4px', fontWeight: 'bold' }}>
-                                            ({rate})
+                                  const displayPercentage = val.percentage;
+                                  const pillColor = '#dc2626'; // Bold Red
+                                  const pillBg = '#fef2f2';    // Light Red background
+
+
+                                  if (isPrexcData) {
+                                    return (
+                                      <React.Fragment key={sdo}>
+                                        <td className={styles.sdoCell} style={{ color: '#0f172a', fontWeight: 'bold' }}>
+                                          {val.fraction || '—'}
+                                        </td>
+                                        <td className={styles.sdoCell} style={{ color: '#0f172a' }}>
+                                          {isEmpty && !val.raw ? (
+                                            <span className={styles.na}>—</span>
+                                          ) : (
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                              <div className={styles.sdoValue}>{renderSdoValue(val.raw)}</div>
+                                              {(displayPercentage !== null || rate) && (
+                                                <div style={{ 
+                                                  color: pillColor, 
+                                                  fontSize: '0.75em', 
+                                                  fontWeight: 'bold',
+                                                  backgroundColor: pillBg,
+                                                  padding: '2px 6px',
+                                                  borderRadius: '4px',
+                                                }}>
+                                                  {displayPercentage !== null ? `${displayPercentage}%` : rate}
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
+                                        </td>
+                                      </React.Fragment>
+                                    );
+                                  }
+
+                                  return (
+                                    <td key={sdo} className={styles.sdoCell} style={{ color: '#0f172a' }}>
+                                      {isEmpty ? (
+                                        <span className={styles.na}>—</span>
+                                      ) : (
+                                        <>
+                                          <div className={styles.sdoValue}>
+                                            {renderSdoValue(val.raw)}
                                           </div>
-                                        )}
-                                      </>
-                                    )}
-                                  </td>
-                                );
+                                          {val.fraction && !isIndividualSdoTab && (
+                                            <div style={{ fontSize: '0.7em', color: '#64748b', marginTop: '2px', fontWeight: 'normal' }}>
+                                              Goal: {val.fraction}
+                                            </div>
+                                          )}
+                                          {(displayPercentage !== null || rate) && (
+                                            <div style={{ 
+                                              color: pillColor, 
+                                              fontSize: '0.75em', 
+                                              marginTop: '6px', 
+                                              fontWeight: 'bold',
+                                              backgroundColor: pillBg,
+                                              padding: '2px 6px',
+                                              borderRadius: '4px',
+                                              display: 'inline-block'
+                                            }}>
+                                              {displayPercentage !== null ? `${displayPercentage}%` : rate}
+                                            </div>
+                                          )}
+                                        </>
+                                      )}
+                                    </td>
+                                  );
                               })}
 
-                              <td className={styles.remarksCell}>
-                                {row.remarks || <span className={styles.na}>—</span>}
-                              </td>
+                              {!isPrexcData && (
+                                <td className={styles.remarksCell}>
+                                  {row.remarks || <span className={styles.na}>—</span>}
+                                </td>
+                              )}
 
                             </tr>
                           );

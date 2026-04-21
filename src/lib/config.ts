@@ -35,7 +35,9 @@ export const SDO_RECOGNITION_MAP: Record<string, string> = {
  */
 export function getCanonicalSdoName(sheetTitle: string): string | null {
   for (const [key, fullName] of Object.entries(SDO_RECOGNITION_MAP)) {
-    if (sheetTitle.includes(key)) return fullName;
+    if (sheetTitle.includes(key)) {
+      return fullName;
+    }
   }
   return null;
 }

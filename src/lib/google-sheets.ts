@@ -14,7 +14,6 @@ export function extractSpreadsheetId(url: string): string | null {
 /** Find the PREXC tab name from a list of sheet titles */
 export function findRelevantSheets(sheets: sheets_v4.Schema$Sheet[]) {
   const titles = sheets.map(s => s.properties?.title || '');
-  console.log("Found raw sheet titles:", titles);
 
   let prexc = titles.find(t => t.toUpperCase().includes('PREXC'));
   const nonPrexc = titles.find(t => t.toUpperCase().includes('NON-PREXC'));

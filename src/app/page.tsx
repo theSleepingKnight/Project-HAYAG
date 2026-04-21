@@ -51,12 +51,12 @@ export default function Home() {
 
   const handleSectionChange = useCallback((section: string) => {
     setActiveSection(section);
-    if (sheetInfo && Object.keys(currentGroups).length > 0) loadSectionData(sheetInfo, section, currentGroups, activeQuarter);
+    if (sheetInfo) loadSectionData(sheetInfo, section, currentGroups, activeQuarter);
   }, [sheetInfo, currentGroups, activeQuarter, loadSectionData, setActiveSection]);
 
   const handleQuarterChange = useCallback((quarter: string) => {
     setActiveQuarter(quarter);
-    if (sheetInfo && Object.keys(currentGroups).length > 0) loadSectionData(sheetInfo, activeSection, currentGroups, quarter);
+    if (sheetInfo) loadSectionData(sheetInfo, activeSection, currentGroups, quarter);
   }, [sheetInfo, activeSection, currentGroups, loadSectionData, setActiveQuarter]);
 
   const handleAutoFit = useCallback(() => {
@@ -153,7 +153,7 @@ export default function Home() {
                   const containerId = `pdf-hidden-${groupName.toLowerCase().replace(/\s+/g, '-')}`;
                   const isExporting = exportingGroup === groupName;
                   return (
-                    <div key={groupName} className={styles.groupBlock}>
+                    <div key={`${groupName}-${activeSection}`} className={styles.groupBlock}>
                       <div className={styles.groupHeader}>
                         <span className={styles.groupTitle}>
                           {groupName}

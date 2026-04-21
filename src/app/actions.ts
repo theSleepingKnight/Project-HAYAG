@@ -173,19 +173,52 @@ export async function fetchSheetData(
 ): Promise<{ success: boolean; data: unknown[][]; message: string }> {
   try {
     const sheets = await getSheetsClient();
-    const range = `${sheetName}!A:AZ`; // Scan up to column AZ
-
+    
+    // 1. Fetch values (A:AZ)
+    const range = `'${sheetName.replace(/'/g, "''")}'!A:AZ`; 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range,
     });
-
     const rows = response.data.values || [];
-    return {
-      success: true,
-      data: rows as unknown[][],
-      message: 'Success'
-    };
+
+    try {
+      // 2. Fetch row metadata using a narrow 1-column range to keep payload small.
+      //    - `includeGridData: false` prevents rowMetadata from being returned at all.
+      //    - Manually hidden rows use `hiddenByUser: true`, NOT `hidden: true`.
+      //      (`hidden` is only set by filters, `hiddenByUser` is set by View > Hide Rows.)
+      const quotedName = sheetName.replace(/'/g, "''");
+      const metadataResponse = await sheets.spreadsheets.get({
+        spreadsheetId,
+        ranges: [`'${quotedName}'!A:A`],
+        includeGridData: true,
+        fields: 'sheets.properties.title,sheets.data.rowMetadata',
+      });
+
+      // Find the sheet matching our tab name
+      const targetSheet = metadataResponse.data.sheets?.find(
+        s => s.properties?.title === sheetName
+      );
+      const rowMetadata = targetSheet?.data?.[0]?.rowMetadata || [];
+
+      // 3. Filter out hidden rows — check both manual hide (hiddenByUser) and filter hide (hidden).
+      const filteredData = rows.filter((_, index) => {
+        const meta = rowMetadata[index];
+        return meta?.hiddenByUser !== true && meta?.hidden !== true;
+      });
+      return {
+        success: true,
+        data: filteredData as unknown[][],
+        message: 'Success'
+      };
+    } catch (metaError) {
+      console.warn("Failed to fetch row metadata, showing all rows:", metaError);
+      return {
+        success: true,
+        data: rows as unknown[][],
+        message: 'Success (Hidden rows filter failed)'
+      };
+    }
   } catch (error: unknown) {
     console.error("Google API Fetch Error:", error);
     return {
