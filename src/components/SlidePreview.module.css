@@ -109,9 +109,9 @@
 .comparisonTable thead th {
   background: var(--deped-navy);
   color: #ffffff;
-  padding: 0.35rem 0.1rem;
+  padding: 0.5rem 0.2rem;
   font-family: Helvetica, Arial, sans-serif;
-  font-size: 0.55rem;
+  font-size: 14px;
   text-align: center;
   vertical-align: middle;
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -120,23 +120,24 @@
 }
 
 .sdoPrefix {
-  font-size: 0.45rem;
-  opacity: 0.8;
+  font-size: 12px;
+  opacity: 0.9;
   display: block;
   font-weight: 400;
-  margin-bottom: -1px;
+  margin-bottom: 2px;
 }
 
 .sdoMainName {
   font-weight: 800;
-  line-height: 1.1;
+  font-size: 15px;
+  line-height: 1.2;
 }
 
 /* FIX: Specific color-matched headers */
-.mainCol    { width: 32%; text-align: center !important; background: #1B365D !important; }
-.targetCol  { width: 8%; }
-.sdoCol     { width: 8%; min-width: 80px; max-width: 100px; overflow: hidden; }
-.remarksCol { width: 9%; text-align: center !important; background: #1B365D !important; }
+.mainCol    { width: 35%; text-align: center !important; background: #1B365D !important; }
+.targetCol  { text-align: center; }
+.sdoCol     { text-align: center; overflow: hidden; min-width: 60px; }
+.remarksCol { text-align: center !important; background: #1B365D !important; }
 
 /* ─── Division Label Row (above classification) ────────────────────────────── */
 .divisionCell {
@@ -266,9 +267,7 @@
   font-size: 16px;
   word-break: break-word;
   overflow-wrap: break-word;
-  hyphens: auto;
   overflow: hidden;
-  max-width: 100px;
 }
 
 .sdoValue {

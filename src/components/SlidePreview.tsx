@@ -135,8 +135,8 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                 <tr className={styles.headerRow}>
                   {sdosInThisSlide.map((sdo) => (
                     <React.Fragment key={`${sdo}-sub`}>
-                      <th className={styles.sdoCol} style={{ background: '#eab308', color: '#0f172a', fontSize: '0.65em', padding: '4px', borderTop: 'none', borderRight: '1px solid #1e293b' }}>TARGET</th>
-                      <th className={styles.sdoCol} style={{ background: '#f8fafc', color: '#0f172a', fontSize: '0.65em', padding: '4px', borderTop: 'none' }}>ACTUAL</th>
+                      <th className={styles.sdoCol} style={{ background: '#eab308', color: '#0f172a', fontSize: '0.9em', padding: '6px 4px', borderTop: 'none', borderRight: '1px solid #1e293b' }}>TARGET</th>
+                      <th className={styles.sdoCol} style={{ background: '#f8fafc', color: '#0f172a', fontSize: '0.9em', padding: '6px 4px', borderTop: 'none' }}>ACTUAL</th>
                     </React.Fragment>
                   ))}
                 </tr>
