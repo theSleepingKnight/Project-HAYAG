@@ -8,11 +8,11 @@ export const DEFAULT_SDOS = [
   "SDO Dipolog City", 
   "SDO Isabela City",
   "SDO Pagadian City", 
+  "SDO Sulu",
   "SDO Zamboanga City",
   "SDO Zamboanga del Norte", 
   "SDO Zamboanga del Sur", 
-  "SDO Zamboanga Sibugay",
-  "SDO Sulu"
+  "SDO Zamboanga Sibugay"
 ];
 
 /**

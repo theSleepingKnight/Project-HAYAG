@@ -1,4 +1,4 @@
-import { getCanonicalSdoName } from './config';
+import { getCanonicalSdoName, DEFAULT_SDOS, SDO_RECOGNITION_MAP, formatQuarterLabel } from './config';
 
 /**
  * data-engine.ts — Shared types and utility functions for Project HAYAG
@@ -39,38 +39,120 @@ export function buildDynamicConfig(sheetData: unknown[][], tabName: string, quar
     config.sdoMap[sdoName] = 2 + (qNum * 2);
     config.remarksCol = 2 + (qNum * 2) + 1;
   } else {
-    const sdoKeys = [
-      'Dapitan City', 'Dipolog City', 'Isabela City', 'Pagadian City', 'Zamboanga City', 
-      'Zamboanga del Norte', 'Zamboanga del Sur', 'Zamboanga Sibugay', 'Sulu'
-    ];
+    const sdoKeys = DEFAULT_SDOS.map(s => s.replace('SDO ', ''));
+
+    // Helper for robust SDO name matching
+    const matchSdo = (cellVal: string, sdoFull: string) => {
+      const clean = (s: string) => s.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+      const val = cellVal.toString().toUpperCase();
+      const full = sdoFull.toUpperCase();
+      const cleanVal = clean(val);
+      const cleanFull = clean(full);
+      const abbr = Object.entries(SDO_RECOGNITION_MAP).find(([_, v]) => v === `SDO ${sdoFull}`)?.[0]?.toUpperCase();
+      
+      if (cleanVal === cleanFull || cleanVal.includes(cleanFull) || val.includes(full)) return true;
+      if (abbr && (val === abbr || val.includes(` ${abbr}`) || val.startsWith(`${abbr} `) || val.endsWith(` ${abbr}`))) return true;
+      
+      const keywords = full.split(' ').filter(w => w.length > 2 && w !== 'CITY' && w !== 'DEL');
+      if (keywords.length > 1 && keywords.every(k => cleanVal.includes(clean(k)))) return true;
+      
+      if (full.includes('ISABELA') && val.includes('ISABELA')) return true;
+      if (full.includes('SULU') && val.includes('SULU')) return true;
+
+      return false;
+    };
 
     if (tabName.toUpperCase().includes('PREXC') && !isNonPrexc) {
       config.sdoTargetMap = {};
-      sdoKeys.forEach((s, i) => {
-        // Targets: Columns G to O (Index 6 to 14)
-        config.sdoTargetMap![`SDO ${s}`] = 6 + i; 
-        // Accomplishments: Columns R to AI (Index 17, 19, 21...) skipping Remarks
-        config.sdoMap[`SDO ${s}`] = 17 + (i * 2);
+      
+      const headerRows = sheetData.slice(0, 15);
+      
+      // 1. Identify Target columns
+      sdoKeys.forEach(s => {
+        let found = false;
+        for (const row of headerRows) {
+          if (found) break;
+          for (let c = 5; c < 50; c++) {
+            const val = (row[c] ?? '').toString();
+            if (matchSdo(val, s) && !val.toUpperCase().includes('ACCOMPLISHMENTS') && !val.toUpperCase().includes('ACTUAL')) {
+              config.sdoTargetMap![`SDO ${s}`] = c;
+              found = true;
+              break;
+            }
+          }
+        }
       });
-    } else {
-      const startCol = isNonPrexc ? 4 : 6; 
-      const row4 = sheetData[3] || [];
-      for (let c = startCol; c < Math.min(row4.length, startCol + 40); c++) {
-        const val = (row4[c] ?? '').toString().trim().toUpperCase();
-        if (!val) continue;
+
+  // 2. Identify Accomplishment columns for the correct quarter
+      let qStartCol = -1;
+      const qOrdinals = ['1ST', '2ND', '3RD', '4TH', 'FIRST', 'SECOND', 'THIRD', 'FOURTH'];
+      for (const row of headerRows) {
+        if (qStartCol !== -1) break;
+        for (let c = 5; c < Math.min(row.length, 120); c++) {
+          const val = (row[c] ?? '').toString().replace(/\s+/g, ' ').trim().toUpperCase();
+          if (!val) continue;
+
+          const isAccomp = val.includes('ACCOMPLISHMENTS') || val.includes('ACTUAL');
+          const isCorrectQ = val.includes(`Q${qNum}`) || val.includes(`${qNum}Q`) || 
+                             val.includes(qOrdinals[qNum-1]) || 
+                             val.includes(qOrdinals[qNum+3]) ||
+                             (val.includes('QUARTER') && val.includes(qNum.toString()));
+          
+          if (isAccomp && isCorrectQ) {
+            qStartCol = c;
+            break;
+          }
+        }
+      }
+
+      if (qStartCol !== -1) {
         sdoKeys.forEach(s => {
-          if (val === s.toUpperCase() || val.includes(s.toUpperCase())) {
-            if (!config.sdoMap[`SDO ${s}`]) config.sdoMap[`SDO ${s}`] = c;
+          let found = false;
+          for (const row of headerRows) {
+            if (found) break;
+            // STRICTLY scan from qStartCol forward for accomplishments
+            for (let c = qStartCol; c < Math.min(row.length, qStartCol + 80); c++) {
+              const val = (row[c] ?? '').toString();
+              if (matchSdo(val, s) && !val.toUpperCase().includes('TARGET')) {
+                config.sdoMap[`SDO ${s}`] = c;
+                found = true;
+                break;
+              }
+            }
           }
         });
       }
+
+      const qOffset = (qNum - 1) * 18;
+      sdoKeys.forEach((s, i) => {
+        const name = `SDO ${s}`;
+        if (config.sdoTargetMap![name] === undefined) config.sdoTargetMap![name] = 6 + i;
+        if (config.sdoMap[name] === undefined) config.sdoMap[name] = 17 + qOffset + (i * 2);
+      });
+    } else {
+      const startCol = isNonPrexc ? 4 : 6; 
+      const rows = sheetData.slice(0, 15);
+      for (const row of rows) {
+        for (let c = startCol; c < Math.min(row.length, startCol + 120); c++) {
+          const val = (row[c] ?? '').toString();
+          if (!val) continue;
+          sdoKeys.forEach(s => {
+            if (matchSdo(val, s)) {
+              if (!config.sdoMap[`SDO ${s}`]) config.sdoMap[`SDO ${s}`] = c;
+            }
+          });
+        }
+      }
     }
 
-    for (let r = 3; r <= 5; r++) {
+    // Identify Remarks column
+    for (let r = 0; r < 8; r++) {
       const row = sheetData[r] || [];
-      for (let c = 0; c < row.length; c++) {
+      for (let c = 10; c < row.length; c++) {
         const val = (row[c] ?? '').toString().trim().toUpperCase();
-        if (val === 'REMARKS') config.remarksCol = c;
+        if (val === 'REMARKS' || val.includes('REMARKS (Q')) {
+          config.remarksCol = c;
+        }
       }
     }
   }
@@ -149,7 +231,10 @@ export function parseSdoValue(raw: unknown, targetRaw?: unknown): SdoValue {
   const str = (raw ?? '').toString().trim();
   const tgt = (targetRaw ?? '').toString().trim();
   
-  if (!str) return { raw: '', percentage: null, fraction: null, numericValue: null };
+  // Even if accomplishment is empty, we must return the target if it exists
+  if (!str && !tgt) {
+    return { raw: '', percentage: null, fraction: null, numericValue: null };
+  }
 
   const actualVal = extractNumeric(str);
   let calculatedPercentage: number | null = null;

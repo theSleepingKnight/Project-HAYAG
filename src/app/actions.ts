@@ -175,7 +175,7 @@ export async function fetchSheetData(
     const sheets = await getSheetsClient();
     
     // 1. Fetch values (A:AZ)
-    const range = `'${sheetName.replace(/'/g, "''")}'!A:AZ`; 
+    const range = `'${sheetName.replace(/'/g, "''")}'!A:CZ`; 
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId,
       range,

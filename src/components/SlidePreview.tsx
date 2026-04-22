@@ -256,15 +256,15 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                                     return (
                                       <React.Fragment key={sdo}>
                                         <td className={styles.sdoCell} style={{ color: '#0f172a', fontWeight: 'bold' }}>
-                                          {val.fraction || '—'}
+                                          {val?.fraction || '—'}
                                         </td>
                                         <td className={styles.sdoCell} style={{ color: '#0f172a' }}>
-                                          {isEmpty && !val.raw ? (
+                                          {isEmpty ? (
                                             <span className={styles.na}>—</span>
                                           ) : (
                                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                                              <div className={styles.sdoValue}>{renderSdoValue(val.raw)}</div>
-                                              {(displayPercentage !== null || rate) && (
+                                              <div className={styles.sdoValue}>{val ? renderSdoValue(val.raw) : '—'}</div>
+                                              {val && (val.percentage !== null || rate) && (
                                                 <div style={{ 
                                                   color: pillColor, 
                                                   fontSize: '0.75em', 
@@ -273,7 +273,7 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                                                   padding: '2px 6px',
                                                   borderRadius: '4px',
                                                 }}>
-                                                  {displayPercentage !== null ? `${displayPercentage}%` : rate}
+                                                  {val.percentage !== null ? `${val.percentage}%` : rate}
                                                 </div>
                                               )}
                                             </div>
