@@ -1,4 +1,4 @@
-import { getCanonicalSdoName, DEFAULT_SDOS, SDO_RECOGNITION_MAP, formatQuarterLabel } from './config';
+import { getCanonicalSdoName, DEFAULT_SDOS, SDO_RECOGNITION_MAP } from './config';
 
 /**
  * data-engine.ts — Shared types and utility functions for Project HAYAG
@@ -48,7 +48,7 @@ export function buildDynamicConfig(sheetData: unknown[][], tabName: string, quar
       const full = sdoFull.toUpperCase();
       const cleanVal = clean(val);
       const cleanFull = clean(full);
-      const abbr = Object.entries(SDO_RECOGNITION_MAP).find(([_, v]) => v === `SDO ${sdoFull}`)?.[0]?.toUpperCase();
+      const abbr = Object.entries(SDO_RECOGNITION_MAP).find(([, v]) => v === `SDO ${sdoFull}`)?.[0]?.toUpperCase();
       
       if (cleanVal === cleanFull || cleanVal.includes(cleanFull) || val.includes(full)) return true;
       if (abbr && (val === abbr || val.includes(` ${abbr}`) || val.startsWith(`${abbr} `) || val.endsWith(` ${abbr}`))) return true;

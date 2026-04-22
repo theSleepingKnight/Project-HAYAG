@@ -29,7 +29,7 @@ function isHeaderRow(text: string): boolean {
   return SKIP_ROW_PATTERNS.some((p) => p.test(text.trim()));
 }
 
-function isPureHeader(row: unknown[], config: any): boolean {
+function isPureHeader(row: unknown[], config: SheetConfig): boolean {
   // Check CO/RO target columns
   const startCheckCol = config.coTargetCol;
   for (let c = startCheckCol; c < Math.min(row.length, startCheckCol + 2); c++) {
