@@ -29,9 +29,74 @@ async function loadImageAsBase64(url: string): Promise<string> {
 }
 
 // ─── Main Entry Point ───────────────────────────────────────────────────────────
+// ─── Precalculate PDF Page Count ───────────────────────────────────────────────
+function precalculatePages(
+  slides: HTMLElement[],
+  pdfH: number,
+  ratio: number,
+  outlineItemsCount: number
+): number {
+  let pages = 1; // Cover Page
+  if (outlineItemsCount > 0) {
+    pages++; // Agenda Page
+  }
+
+  for (const slide of slides) {
+    const thead = slide.querySelector('thead') as HTMLElement | null;
+    const tbody = slide.querySelector('tbody') as HTMLElement | null;
+
+    let hHeightPx = 0;
+    if (thead) {
+      hHeightPx = thead.offsetHeight;
+    }
+    const scaledHPt = hHeightPx * ratio;
+
+    const totalCssPx = slide.offsetHeight;
+    const allRows = tbody ? Array.from(tbody.querySelectorAll('tr')) as HTMLElement[] : [];
+    
+    const HEADER_TYPES = new Set(['division-header', 'program-header', 'group-label', 'parent-label']);
+    const headerRowBottoms = new Set<number>();
+    
+    const rowBounds = allRows.map(r => {
+      const top    = getOffsetFromAncestor(r, slide);
+      const bottom = top + r.offsetHeight;
+      const rowType = r.getAttribute('data-row-type') || '';
+      if (HEADER_TYPES.has(rowType)) headerRowBottoms.add(bottom);
+      return { top, bottom };
+    });
+
+    const p1MaxPx = (pdfH - 2 * MARGIN - FOOTER_H) / ratio;
+
+    if (totalCssPx <= p1MaxPx * 1.4 && totalCssPx > p1MaxPx) {
+      pages++; // Auto-fit slide
+    } else {
+      // Multi-page splits
+      const cMax = (pdfH - 2 * MARGIN - scaledHPt - FOOTER_H) / ratio;
+      const p1Split = findSplit(rowBounds, 0, p1MaxPx, totalCssPx, headerRowBottoms);
+      pages++; // First page of slide
+      
+      let cur = p1Split;
+      while (cur < totalCssPx - 5) {
+        const remaining = rowBounds.filter(r => r.top >= cur);
+        if (remaining.length === 0) break;
+
+        const split = findSplit(rowBounds, cur, cur + cMax, totalCssPx, headerRowBottoms);
+        if (split <= cur + 1) break;
+        pages++;
+        cur = split;
+      }
+    }
+  }
+
+  pages++; // Thank You Page
+  return pages;
+}
+
+// ─── Main Entry Point ───────────────────────────────────────────────────────────
 export async function generateHAYAGPdf(
   hiddenContainerId: string,
-  options: PdfOptions
+  options: PdfOptions,
+  onProgress?: (current: number, total: number) => void
 ) {
   const container = document.getElementById(hiddenContainerId);
   if (!container) return;
@@ -51,17 +116,29 @@ export async function generateHAYAGPdf(
   } catch (e) {
     console.warn('Could not load logo:', e);
   }
+  
+  const slides = Array.from(container.children) as HTMLElement[];
+  const totalPages = precalculatePages(slides, pdfH, ratio, outlineItems.length);
+
+  if (onProgress) {
+    onProgress(1, totalPages);
+  }
   drawCoverPage(pdf, pdfW, pdfH, quarter, date, location, logoBase64);
 
   // 2. Agenda
   if (outlineItems.length > 0) {
     pdf.addPage();
+    if (onProgress) {
+      onProgress(pdf.getNumberOfPages(), totalPages);
+    }
     drawOutlinePage(pdf, pdfW, pdfH, outlineItems);
   }
 
   // 3. Slides
-  const slides = Array.from(container.children) as HTMLElement[];
   for (const slide of slides) {
+    // Yield to browser main thread so UI animations/spinner can redraw
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
     const thead = slide.querySelector('thead') as HTMLElement | null;
     const tbody = slide.querySelector('tbody') as HTMLElement | null;
 
@@ -80,8 +157,6 @@ export async function generateHAYAGPdf(
     const totalCssPx = fullCanvas.height / SCALE;
     const allRows  = tbody ? Array.from(tbody.querySelectorAll('tr')) as HTMLElement[] : [];
     
-    // Tag header rows by their data-row-type attribute so the splitter
-    // can avoid stranding them alone at the bottom of a page.
     const HEADER_TYPES = new Set(['division-header', 'program-header', 'group-label', 'parent-label']);
     const headerRowBottoms = new Set<number>();
     
@@ -95,6 +170,9 @@ export async function generateHAYAGPdf(
 
     const p1MaxPx = (pdfH - 2 * MARGIN - FOOTER_H) / ratio;
     pdf.addPage();
+    if (onProgress) {
+      onProgress(pdf.getNumberOfPages(), totalPages);
+    }
 
     // Data rendering
     if (totalCssPx <= p1MaxPx * 1.4 && totalCssPx > p1MaxPx) {
@@ -102,13 +180,21 @@ export async function generateHAYAGPdf(
     } else {
       await renderSlideMultiPage(
         pdf, fullCanvas, hOffsetPx, hHeightPx, scaledHPt, ratio,
-        pdfW, pdfH, totalCssPx, rowBounds, headerRowBottoms, filename
+        pdfW, pdfH, totalCssPx, rowBounds, headerRowBottoms, filename,
+        () => {
+          if (onProgress) {
+            onProgress(pdf.getNumberOfPages(), totalPages);
+          }
+        }
       );
     }
   }
 
   // 4. Thank You Page
   pdf.addPage();
+  if (onProgress) {
+    onProgress(pdf.getNumberOfPages(), totalPages);
+  }
   drawThankYouPage(pdf, pdfW, pdfH, logoBase64);
 
 
@@ -254,7 +340,8 @@ async function renderSlideMultiPage(
   pdfW: number, pdfH: number, cssH: number,
   rb: Array<{top:number, bottom:number}>,
   headerRowBottoms: Set<number>,
-  fn: string
+  fn: string,
+  onPageAdded?: () => void
 ) {
   const p1Max = (pdfH - 2 * MARGIN - FOOTER_H) / rat;
   const cMax  = (pdfH - 2 * MARGIN - hPt - FOOTER_H) / rat;
@@ -278,6 +365,12 @@ async function renderSlideMultiPage(
     if (split <= cur + 1) break;
 
     pdf.addPage();
+    if (onPageAdded) {
+      onPageAdded();
+    }
+    // Yield to the browser main thread so the UI can paint the updated progress text
+    await new Promise((resolve) => setTimeout(resolve, 15));
+
     drawPageFooter(pdf, pdfW, pdfH, MARGIN, fn, pageNum);
 
     if (hH > 0) {

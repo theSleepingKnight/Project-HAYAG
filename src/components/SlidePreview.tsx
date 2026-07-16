@@ -124,7 +124,6 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                       <>
                         <span className={styles.sdoPrefix}>SDO</span>
                         <div className={styles.sdoMainName}>{sdo.replace('SDO ', '')}</div>
-                        <span className={styles.sdoPrefix} style={{ marginTop: '2px' }}>(Accomplishments)</span>
                       </>
                     ) : sdo}
                   </th>
@@ -135,8 +134,8 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                 <tr className={styles.headerRow}>
                   {sdosInThisSlide.map((sdo) => (
                     <React.Fragment key={`${sdo}-sub`}>
-                      <th className={styles.sdoCol} style={{ background: '#eab308', color: '#0f172a', fontSize: '0.9em', padding: '6px 4px', borderTop: 'none', borderRight: '1px solid #1e293b' }}>TARGET</th>
-                      <th className={styles.sdoCol} style={{ background: '#f8fafc', color: '#0f172a', fontSize: '0.9em', padding: '6px 4px', borderTop: 'none' }}>ACTUAL</th>
+                      <th className={styles.sdoCol} style={{ background: '#eab308', color: '#0f172a', fontSize: '0.85em', padding: '6px 4px', borderTop: 'none', borderRight: '1px solid #1e293b' }}>ACCOMPLISHMENT</th>
+                      <th className={styles.sdoCol} style={{ background: '#f1f5f9', color: '#0f172a', fontSize: '0.85em', padding: '6px 4px', borderTop: 'none' }}>REMARKS</th>
                     </React.Fragment>
                   ))}
                 </tr>
@@ -227,11 +226,17 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
 
                               {sdosInThisSlide.map((sdo) => {
                                 const val = row.sdoValues[sdo];
-                                const isEmpty = !val || !val.raw;
+                                const isEmpty = isPrexcData 
+                                  ? (!val || (!val.raw && !val.fraction))
+                                  : (!val || !val.raw);
 
                                 const renderSdoValue = (raw: string) => {
+                                  const trimmed = raw.trim();
+                                  if (trimmed.toLowerCase() === 'cmi') {
+                                    return <span>—</span>;
+                                  }
                                   // Look for trailing parenthetical blocks like "(134/158)"
-                                  const match = raw.match(/^(.*?)\s*(\(.*)$/);
+                                  const match = trimmed.match(/^(.*?)\s*(\(.*)$/);
                                   if (match && match[1]) {
                                     return (
                                       <>
@@ -242,42 +247,121 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                                       </>
                                     );
                                   }
-                                  return <span>{raw}</span>;
+                                  return <span>{trimmed}</span>;
                                 };
 
                                 const rate = isIndividualSdoTab ? getAccomplishmentRate(val, row.annualTarget.ro, row.text) : null;
 
-                                  const displayPercentage = val.percentage;
+                                  const displayPercentage = val?.percentage;
                                   const pillColor = '#dc2626'; // Bold Red
                                   const pillBg = '#fef2f2';    // Light Red background
 
 
                                   if (isPrexcData) {
+                                    // Determine badge colors based on percentage
+                                    let badgeColor = '';
+                                    let badgeBg = '';
+                                    let badgeText = '';
+
+                                    if (displayPercentage !== null && displayPercentage !== undefined) {
+                                      badgeText = `${displayPercentage}%`;
+                                      if (displayPercentage >= 90) {
+                                        badgeColor = '#16803d'; // Green
+                                        badgeBg = '#f0fdf4';
+                                      } else if (displayPercentage >= 70) {
+                                        badgeColor = '#b45309'; // Amber/Yellow
+                                        badgeBg = '#fef9c3';
+                                      } else {
+                                        badgeColor = '#dc2626'; // Red
+                                        badgeBg = '#fef2f2';
+                                      }
+                                    } else if (rate) {
+                                      badgeText = rate;
+                                      const numRate = parseFloat(rate);
+                                      if (!isNaN(numRate)) {
+                                        if (numRate >= 90) {
+                                          badgeColor = '#16803d';
+                                          badgeBg = '#f0fdf4';
+                                        } else if (numRate >= 70) {
+                                          badgeColor = '#b45309';
+                                          badgeBg = '#fef9c3';
+                                        } else {
+                                          badgeColor = '#dc2626';
+                                          badgeBg = '#fef2f2';
+                                        }
+                                      }
+                                    }
+
+                                    let rawAccomp = val?.raw ? val.raw.trim() : '';
+                                    if (rawAccomp.toLowerCase() === 'cmi') {
+                                      rawAccomp = '';
+                                    }
+
+                                    let rawTarget = val?.fraction ? val.fraction.trim() : '';
+                                    if (rawTarget.toLowerCase() === 'cmi') {
+                                      rawTarget = '';
+                                    }
+
+                                    // Safety check: If the accomplishment is blank or a dash, do not render a percentage rate
+                                    if (!rawAccomp || rawAccomp === '-' || rawAccomp === '—') {
+                                      badgeText = '';
+                                      badgeColor = '';
+                                      badgeBg = '';
+                                    }
+
                                     return (
                                       <React.Fragment key={sdo}>
-                                        <td className={styles.sdoCell} style={{ color: '#0f172a', fontWeight: 'bold' }}>
-                                          {val?.fraction || '—'}
-                                        </td>
-                                        <td className={styles.sdoCell} style={{ color: '#0f172a' }}>
+                                        {/* 1. Combined Accomplishment & Target Cell */}
+                                        <td className={styles.sdoCell} style={{ color: '#000000' }}>
                                           {isEmpty ? (
                                             <span className={styles.na}>—</span>
                                           ) : (
                                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                                              <div className={styles.sdoValue}>{val ? renderSdoValue(val.raw) : '—'}</div>
-                                              {val && (val.percentage !== null || rate) && (
-                                                <div style={{ 
-                                                  color: pillColor, 
-                                                  fontSize: '0.75em', 
-                                                  fontWeight: 'bold',
-                                                  backgroundColor: pillBg,
-                                                  padding: '2px 6px',
-                                                  borderRadius: '4px',
-                                                }}>
-                                                  {val.percentage !== null ? `${val.percentage}%` : rate}
-                                                </div>
+                                              {/* Top: Percentage Badge */}
+                                              {badgeText ? (
+                                                badgeColor ? (
+                                                  <div style={{ 
+                                                    color: badgeColor, 
+                                                    fontSize: '11px', 
+                                                    fontWeight: 'bold',
+                                                    backgroundColor: badgeBg,
+                                                    padding: '2px 6px',
+                                                    borderRadius: '4px',
+                                                    border: `1px solid ${badgeColor}bb`
+                                                  }}>
+                                                    {badgeText}
+                                                  </div>
+                                                ) : (
+                                                  <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>{badgeText}</span>
+                                                )
+                                              ) : (
+                                                <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#000000' }}>-</span>
                                               )}
+
+                                              {/* Middle: Accomp */}
+                                              <div style={{ color: '#000000', marginTop: '2px', textAlign: 'center', lineHeight: '1.2' }}>
+                                                <span style={{ fontWeight: 'bold' }}>Accomp:</span> {rawAccomp || '-'}
+                                              </div>
+                                              
+                                              {/* Bottom: Target */}
+                                              <div style={{ color: '#000000', textAlign: 'center', lineHeight: '1.2' }}>
+                                                <span style={{ fontWeight: 'bold' }}>Target:</span> {rawTarget || '-'}
+                                              </div>
                                             </div>
                                           )}
+                                        </td>
+
+                                        {/* 2. SDO Remarks Cell */}
+                                        <td className={styles.sdoCell} style={{ 
+                                          color: '#000000', 
+                                          fontWeight: 'normal', 
+                                          textAlign: 'left',
+                                          whiteSpace: 'normal',
+                                          wordBreak: 'break-word',
+                                          lineHeight: '1.3',
+                                          padding: '8px'
+                                        }}>
+                                          {val?.remarks ? val.remarks : '-'}
                                         </td>
                                       </React.Fragment>
                                     );
@@ -293,14 +377,14 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                                             {renderSdoValue(val.raw)}
                                           </div>
                                           {val.fraction && !isIndividualSdoTab && (
-                                            <div style={{ fontSize: '0.7em', color: '#64748b', marginTop: '2px', fontWeight: 'normal' }}>
-                                              Goal: {val.fraction}
+                                            <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontWeight: 'normal' }}>
+                                              Goal: {val.fraction.trim().toLowerCase() === 'cmi' ? '-' : val.fraction}
                                             </div>
                                           )}
                                           {(displayPercentage !== null || rate) && (
                                             <div style={{ 
                                               color: pillColor, 
-                                              fontSize: '0.75em', 
+                                              fontSize: '11px', 
                                               marginTop: '6px', 
                                               fontWeight: 'bold',
                                               backgroundColor: pillBg,

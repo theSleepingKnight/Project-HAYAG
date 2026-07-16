@@ -167,6 +167,7 @@ export interface SdoValue {
   percentage: number | null;
   fraction: string | null;
   numericValue: number | null;
+  remarks?: string;
 }
 
 export interface AnnualTarget {
@@ -204,6 +205,11 @@ function extractNumeric(s: string): number | null {
   const clean = s.replace(/,/g, '').trim();
   if (!clean) return null;
   
+  // Reject ordinals like "3rd", "4th Qtr", "1st Qtr", "2nd"
+  if (/^\d+(?:st|nd|rd|th)\b/i.test(clean)) {
+    return null;
+  }
+  
   // Ratio handling: "1:25" -> 25 (use denominator)
   if (clean.includes(':')) {
     const parts = clean.split(':');
@@ -227,12 +233,13 @@ function extractNumeric(s: string): number | null {
 }
 
 /** Parse a raw cell value into a structured SdoValue */
-export function parseSdoValue(raw: unknown, targetRaw?: unknown): SdoValue {
+export function parseSdoValue(raw: unknown, targetRaw?: unknown, remarksRaw?: unknown): SdoValue {
   const str = (raw ?? '').toString().trim();
   const tgt = (targetRaw ?? '').toString().trim();
+  const rem = (remarksRaw ?? '').toString().trim();
   
   // Even if accomplishment is empty, we must return the target if it exists
-  if (!str && !tgt) {
+  if (!str && !tgt && !rem) {
     return { raw: '', percentage: null, fraction: null, numericValue: null };
   }
 
@@ -252,6 +259,7 @@ export function parseSdoValue(raw: unknown, targetRaw?: unknown): SdoValue {
     percentage: calculatedPercentage,
     fraction: tgt || null,
     numericValue: actualVal,
+    remarks: rem || undefined,
   };
 }
 

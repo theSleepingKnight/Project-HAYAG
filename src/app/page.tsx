@@ -32,6 +32,7 @@ export default function Home() {
   const [exportingGroup, setExportingGroup] = useState<string | null>(null);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [pendingDownload, setPendingDownload] = useState<{ groupName: string; quarter: string; format: 'pdf' | 'pptx' } | null>(null);
+  const [exportProgressText, setExportProgressText] = useState<string | null>(null);
   
   // New: Manual Scale Control
   const [previewScale, setPreviewScale] = useState<number>(0.8);
@@ -90,13 +91,17 @@ export default function Home() {
     };
 
     if (format === 'pdf') {
-      await generateHAYAGPdf(containerId, options);
+      setExportProgressText('Preparing...');
+      await generateHAYAGPdf(containerId, options, (current, total) => {
+        setExportProgressText(`Page ${current} of ${total}`);
+      });
     } else {
       const slides = groupSlides[groupName] || [];
       await generateHAYAGPptx(slides, options);
     }
     
     setExportingGroup(null);
+    setExportProgressText(null);
     setPendingDownload(null);
   };
 
@@ -118,6 +123,19 @@ export default function Home() {
         onClose={() => { setShowDetectionSuccess(false); }} 
         foundSheets={sheetInfo?.foundSheets ?? { prexc: null, nonPrexc: null }} 
       />
+
+      {exportProgressText && (
+        <div className={styles.progressOverlay}>
+          <div className={styles.progressCard}>
+            <div className={styles.spinner}></div>
+            <h3 className={styles.progressTitle}>Generating PDF Report</h3>
+            <div className={styles.progressText}>{exportProgressText}</div>
+            <p className={styles.progressSubtext}>
+              Converting live spreadsheet tables into landscape PDF layout. Please do not close this window.
+            </p>
+          </div>
+        </div>
+      )}
 
       <ReportGeneratorCard 
         sheetLink={sheetLink} 
@@ -177,7 +195,7 @@ export default function Home() {
                           onClick={() => handleGroupDownload(groupName, activeQuarter, 'pdf')} 
                           disabled={isExporting || slides.length === 0}
                         >
-                          {isExporting ? '⏳ Generating...' : `⬇ PDF Report`}
+                          {isExporting ? (exportProgressText || '⏳ Generating...') : `⬇ PDF Report`}
                         </button>
                           <div className={styles.pptxWrapper}>
                             <button className={styles.groupPptxBtn} disabled={true}>

@@ -127,8 +127,21 @@ export function extractRealSheetData(sheetData: unknown[][], config: SheetConfig
           const sdoTgtStr = (sdoTargetRaw ?? '').toString().trim();
           effectiveTarget = (sdoTgtStr === '—' || sdoTgtStr === '-') ? '' : sdoTargetRaw;
         }
+
+        let sdoRemarks: string | undefined = undefined;
+        const remarksIdx = idx + 1;
         
-        sdoValues[name] = parseSdoValue(row[idx], effectiveTarget);
+        // Robust check: Verify if the column immediately to the right is labeled "Remarks" in the headers
+        const isRemarksCol = sheetData.slice(0, 10).some(hRow => {
+          const val = (hRow[remarksIdx] ?? '').toString().toUpperCase();
+          return val.includes('REMARKS');
+        });
+
+        if (isRemarksCol) {
+          sdoRemarks = (row[remarksIdx] ?? '').toString().trim();
+        }
+        
+        sdoValues[name] = parseSdoValue(row[idx], effectiveTarget, sdoRemarks);
       }
       
       const targetRem = config.targetRemarksCol ? ((row[config.targetRemarksCol] ?? '') as string).toString().trim() : '';

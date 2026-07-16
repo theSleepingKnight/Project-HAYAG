@@ -144,7 +144,7 @@
   background: #112240;        /* Slightly darker navy to differentiate */
   color: #FFD700;             /* DepEd Gold */
   font-family: Helvetica, Arial, sans-serif;
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: 0.06em;
   padding: 0.3rem 0.6rem;
@@ -162,7 +162,7 @@
 
 /* Acronym / short title base — DepEd Gold. Inline acronyms will override to White. */
 .programTitle {
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 800;
   letter-spacing: 0.05em;
   color: #FFD700;
@@ -183,7 +183,7 @@
 
 /* Expanded definition flowing naturally without stacked lines */
 .programDefinitionFlowing {
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 400;
   font-style: normal;
   text-transform: none !important;
@@ -207,7 +207,7 @@
   background: #f3e8ff;
   color: #6b21a8;
   font-family: Helvetica, Arial, sans-serif;
-  font-size: 18px;
+  font-size: 14px;
   font-style: italic;
   font-weight: 700;
   padding: 0.4rem 0.6rem;
@@ -232,7 +232,7 @@
   border: 1.5px solid #1b365d; /* FIX: Borders on EVERYTHING inside */
   color: var(--deped-navy);
   font-family: Helvetica, Arial, sans-serif;
-  font-size: 18px;
+  font-size: 13px;
   font-weight: 700;
   vertical-align: middle;
   line-height: 1.4;
@@ -244,7 +244,7 @@
   border-left: 8px solid #3b82f6 !important; /* Emphasized blue border */
   font-style: italic;
   color: #1e3a8a !important;
-  font-size: 18px !important;
+  font-size: 13px !important;
 }
 
 .targetCell {
@@ -252,7 +252,7 @@
   border: 1.5px solid #1b365d; /* FIX: Borders on EVERYTHING inside */
   text-align: center;
   font-family: Helvetica, Arial, sans-serif;
-  font-size: 18px;
+  font-size: 13px;
   font-weight: 700;
   color: #334155;
   vertical-align: middle;
@@ -264,7 +264,7 @@
   text-align: center;
   vertical-align: middle;
   font-family: Helvetica, Arial, sans-serif;
-  font-size: 16px;
+  font-size: 13px;
   word-break: break-word;
   overflow-wrap: break-word;
   overflow: hidden;
@@ -272,7 +272,7 @@
 
 .sdoValue {
   font-weight: 800;
-  font-size: 16px;
+  font-size: 13px;
   line-height: 1.25;
   display: block;
   word-break: break-word;
@@ -292,7 +292,7 @@
   border: 1.5px solid #1b365d; /* FIX: Borders on EVERYTHING inside */
   color: #475569;
   font-family: Helvetica, Arial, sans-serif;
-  font-size: 16px;
+  font-size: 13px;
   font-style: italic;
   line-height: 1.35;
   vertical-align: middle;
@@ -303,7 +303,7 @@
 .na {
   color: #cbd5e1;
   font-family: Helvetica, Arial, sans-serif;
-  font-size: 16px;
+  font-size: 13px;
   font-style: italic;
   font-weight: 400;
 }
@@ -326,7 +326,7 @@
   background: #fdf4ff;
   color: #581c87;
   font-family: Helvetica, Arial, sans-serif;
-  font-size: 18px;
+  font-size: 14px;
   font-style: italic;
   font-weight: 800;
   text-align: left;
