@@ -292,13 +292,16 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                                       }
                                     }
 
+                                    const rawTargetVal = val?.fraction ? val.fraction.trim() : '';
+                                    const isTargetCmi = rawTargetVal.toLowerCase() === 'cmi';
+
                                     let rawAccomp = val?.raw ? val.raw.trim() : '';
                                     if (rawAccomp.toLowerCase() === 'cmi') {
                                       rawAccomp = '';
                                     }
 
-                                    let rawTarget = val?.fraction ? val.fraction.trim() : '';
-                                    if (rawTarget.toLowerCase() === 'cmi') {
+                                    let rawTarget = rawTargetVal;
+                                    if (isTargetCmi) {
                                       rawTarget = '';
                                     }
 
@@ -315,6 +318,10 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                                         <td className={styles.sdoCell} style={{ color: '#000000' }}>
                                           {isEmpty ? (
                                             <span className={styles.na}>—</span>
+                                          ) : isTargetCmi ? (
+                                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                                              <span style={{ fontWeight: 'bold' }}>CMI</span>
+                                            </div>
                                           ) : (
                                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                                               {/* Top: Percentage Badge */}
