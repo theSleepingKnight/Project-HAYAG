@@ -96,16 +96,16 @@ export default function SmartSlideBuilder({ groups, setGroups }: SmartSlideBuild
 
   return (
     <div className={styles.container}>
-       <div className={styles.presetsBar}>
-         <span className={styles.presetLabel}>Auto-Distribute:</span>
-         <button onClick={() => randomizeGroups(2)} className={styles.presetBtn}>🎲 2 Groups</button>
-         <button onClick={() => randomizeGroups(3)} className={styles.presetBtn}>🎲 3 Groups</button>
-         <button onClick={() => randomizeGroups(4)} className={styles.presetBtn}>🎲 4 Groups</button>
-         <div style={{flex: 1}}></div>
-         <button onClick={clearAll} className={styles.presetBtn} style={{ color: '#ef4444', borderColor: '#fca5a5' }}>
-           🎯 Clear / Isolate SDO
-         </button>
-       </div>
+        <div className={styles.presetsBar}>
+          <span className={styles.presetLabel}>Auto-Distribute:</span>
+          <button onClick={() => randomizeGroups(2)} className={styles.presetBtn}>2 Groups</button>
+          <button onClick={() => randomizeGroups(3)} className={styles.presetBtn}>3 Groups</button>
+          <button onClick={() => randomizeGroups(4)} className={styles.presetBtn}>4 Groups</button>
+          <div style={{flex: 1}}></div>
+          <button onClick={clearAll} className={styles.presetBtn} style={{ color: '#ef4444', borderColor: '#fca5a5' }}>
+            Clear Groupings
+          </button>
+        </div>
 
        <div 
          className={styles.unassignedTray}

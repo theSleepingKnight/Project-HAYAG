@@ -175,7 +175,7 @@ export default function Home() {
               className={`${styles.mainTabBtn} ${isPrexcTab ? styles.mainTabActive : ''}`}
               onClick={() => handleSectionChange('prexc')}
             >
-              📋 PREXC REPORT
+              PREXC REPORT
             </button>
             <button 
               className={`${styles.mainTabBtn} ${!isPrexcTab ? styles.mainTabActive : ''}`}
@@ -184,7 +184,7 @@ export default function Home() {
                 if (isPrexcTab) handleSectionChange(SDO_LIST[0].code);
               }}
             >
-              📊 NON-PREXC REPORT
+              NON-PREXC REPORT
             </button>
           </div>
 
