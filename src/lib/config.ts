@@ -45,13 +45,25 @@ export function getCanonicalSdoName(sheetTitle: string): string | null {
 export const INITIAL_GROUPS_STATE = {
   "Group A": DEFAULT_SDOS,
   "Group B": [],
-  "Group C": []
+  "Group C": [],
+  "Group D": [],
+  "Group E": [],
+  "Group F": [],
+  "Group G": [],
+  "Group H": [],
+  "Group I": []
 };
 
 export const EMPTY_GROUPS_STATE = {
   "Group A": [],
   "Group B": [],
-  "Group C": []
+  "Group C": [],
+  "Group D": [],
+  "Group E": [],
+  "Group F": [],
+  "Group G": [],
+  "Group H": [],
+  "Group I": []
 };
 
 // ── Quarter label helpers ─────────────────────────────────────────────────────

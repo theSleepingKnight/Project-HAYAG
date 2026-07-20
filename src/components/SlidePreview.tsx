@@ -218,7 +218,7 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                                     <AnnualTargetCell target={row.annualTarget} />
                                   </td>
 
-                                  <td className={styles.remarksCell}>
+                                  <td className={styles.remarksCell} style={{ textAlign: (row.targetRemarks || '').length < 40 ? 'center' : 'left' }}>
                                     {row.targetRemarks || <span className={styles.na}>—</span>}
                                   </td>
                                 </>
@@ -362,7 +362,7 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                                         <td className={styles.sdoCell} style={{ 
                                           color: '#000000', 
                                           fontWeight: 'normal', 
-                                          textAlign: 'left',
+                                          textAlign: (val?.remarks || '-').length < 40 ? 'center' : 'left',
                                           whiteSpace: 'normal',
                                           wordBreak: 'break-word',
                                           lineHeight: '1.3',
@@ -409,7 +409,7 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                               })}
 
                               {!isPrexcData && (
-                                <td className={styles.remarksCell}>
+                                <td className={styles.remarksCell} style={{ textAlign: (row.remarks || '').length < 40 ? 'center' : 'left' }}>
                                   {row.remarks || <span className={styles.na}>—</span>}
                                 </td>
                               )}
