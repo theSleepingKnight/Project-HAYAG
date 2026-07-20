@@ -16,11 +16,6 @@ const zillaSlab = Zilla_Slab({
 export const metadata: Metadata = {
   title: "H·A·Y·A·G | DepEd Region IX",
   description: "Holistic Analysis of Yearly Accomplishments and Governance - DepEd Region IX",
-  icons: {
-    icon: '/favicon.png?v=3',
-    shortcut: '/favicon.png?v=3',
-    apple: '/favicon.png?v=3',
-  },
 };
 
 export default function RootLayout({
