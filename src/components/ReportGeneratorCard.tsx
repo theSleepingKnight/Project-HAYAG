@@ -22,8 +22,8 @@ export default function ReportGeneratorCard({
         <Image 
           src="/deped-region9.png" 
           alt="DepEd Region IX Logo" 
-          width={75} 
-          height={75} 
+          width={110} 
+          height={110} 
           priority
           className={styles.regionLogo} 
         />
@@ -41,10 +41,11 @@ export default function ReportGeneratorCard({
       <div className={styles.inputGroup}>
         <input 
           type="text" 
-          className={styles.inputField} 
+          className={`${styles.inputField} ${isDetecting ? styles.scanning : ''}`} 
           placeholder="Paste Google Sheet Link..." 
           value={sheetLink} 
           onChange={(e) => setSheetLink(e.target.value)} 
+          disabled={isDetecting}
         />
       </div>
       
@@ -53,11 +54,16 @@ export default function ReportGeneratorCard({
       )}
       
       <button 
-        className={styles.actionButton} 
+        className={`${styles.actionButton} ${isDetecting ? styles.btnLoading : ''}`} 
         onClick={onExtract} 
         disabled={isDetecting || cooldown > 0}
       >
-        {isDetecting ? 'Scanning Sheets...' : 'Begin Extraction'}
+        {isDetecting ? (
+          <div className={styles.btnSpinnerContainer}>
+            <div className={styles.btnSpinner}></div>
+            <span>Scanning Sheets...</span>
+          </div>
+        ) : 'Begin Extraction'}
       </button>
     </div>
   );

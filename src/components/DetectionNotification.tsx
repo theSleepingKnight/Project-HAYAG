@@ -20,11 +20,30 @@ export default function DetectionNotification({
   if (!isOpen) return null;
 
   const hasPrexc = !!foundSheets.prexc;
+  
+  // Count how many SDO-specific tabs ending in -NP are present in foundSheets keys
+  const sdoSheets = Object.keys(foundSheets).filter(key => key.toUpperCase().includes('-NP'));
+  const hasNonPrexc = sdoSheets.length > 0;
 
   // The specific tabs being listed
   const tabs = [
-    { type: 'PREXC DATA', name: foundSheets.prexc, found: hasPrexc, icon: '📊' }
+    { type: 'PREXC DATA', name: foundSheets.prexc, found: hasPrexc, icon: '📋' },
+    { 
+      type: 'NON-PREXC DATA', 
+      name: hasNonPrexc ? `${sdoSheets.length} SDO Sheets detected` : 'Not Found', 
+      found: hasNonPrexc, 
+      icon: '📊' 
+    }
   ];
+
+  let detectionText = 'Nothing found';
+  if (hasPrexc && hasNonPrexc) {
+    detectionText = 'PREXC & NON-PREXC';
+  } else if (hasPrexc) {
+    detectionText = 'PREXC ONLY';
+  } else if (hasNonPrexc) {
+    detectionText = 'NON-PREXC ONLY';
+  }
 
   return (
     <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -35,7 +54,7 @@ export default function DetectionNotification({
             Scanning Google Sheets
           </h2>
           <p className={styles.subtitle}>
-            Detected: {hasPrexc ? 'PREXC' : 'Nothing found'}
+            Detected: {detectionText}
           </p>
         </div>
         
@@ -55,7 +74,7 @@ export default function DetectionNotification({
 
         <div className={styles.footer}>
           <button className={styles.closeButton} onClick={onClose}>
-            {hasPrexc ? 'Continue' : 'Back to Search'}
+            {hasPrexc || hasNonPrexc ? 'Continue' : 'Back to Search'}
           </button>
         </div>
       </div>

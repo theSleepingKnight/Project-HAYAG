@@ -21,6 +21,7 @@
   text-transform: uppercase;
   margin-bottom: 1rem;
   letter-spacing: 0.05em;
+  text-align: center;
 }
 
 .buttonGrid {

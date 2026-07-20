@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import styles from './page.module.css';
 import SdoGrouping from '@/components/SdoGrouping';
-import GeneratorOptions from '@/components/GeneratorOptions';
+import QuarterSelector from '@/components/QuarterSelector';
 import SlidePreview from '@/components/SlidePreview';
 import DownloadModal, { PdfFormData } from '@/components/DownloadModal';
 import { generateHAYAGPdf } from '@/lib/pdf-generator';
@@ -11,6 +11,19 @@ import { generateHAYAGPptx } from '@/lib/pptx-generator';
 import DetectionNotification from '@/components/DetectionNotification';
 import ReportGeneratorCard from '@/components/ReportGeneratorCard';
 import { useExtraction } from '@/hooks/useExtraction';
+import { EMPTY_GROUPS_STATE } from '@/lib/config';
+
+const SDO_LIST = [
+  { name: 'Dapitan City', code: 'Dap-NP2026' },
+  { name: 'Dipolog City', code: 'Dip-NP2026' },
+  { name: 'Isabela City', code: 'Isa-NP2026' },
+  { name: 'Pagadian City', code: 'Pag-NP2026' },
+  { name: 'Sulu', code: 'Sul-NP2026' },
+  { name: 'Zamboanga City', code: 'ZamC-NP2026' },
+  { name: 'Zamboanga del Norte', code: 'ZDN-NP2026' },
+  { name: 'Zamboanga del Sur', code: 'ZDS-NP2026' },
+  { name: 'Zamboanga Sibugay', code: 'ZSP-NP2026' },
+];
 
 export default function Home() {
   const {
@@ -33,6 +46,9 @@ export default function Home() {
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [pendingDownload, setPendingDownload] = useState<{ groupName: string; quarter: string; format: 'pdf' | 'pptx' } | null>(null);
   const [exportProgressText, setExportProgressText] = useState<string | null>(null);
+  
+  // Tab State
+  const isPrexcTab = activeSection === 'prexc';
   
   // New: Manual Scale Control
   const [previewScale, setPreviewScale] = useState<number>(0.8);
@@ -59,7 +75,6 @@ export default function Home() {
   }, [sheetInfo, activeSection, currentGroups, loadSectionData, setActiveQuarter]);
 
   const handleAutoFit = useCallback(() => {
-    // Standard table width is 1122px. We want to fit it into the parent container width.
     const container = document.querySelector(`.${styles.dashboard}`);
     if (!container) return;
     
@@ -142,20 +157,64 @@ export default function Home() {
         setSheetLink={setSheetLink} 
         isDetecting={isDetecting} 
         cooldown={cooldown} 
-        onExtract={() => startExtraction(currentGroups)} 
+        onExtract={() => {
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('hayag_sdo_groups');
+          }
+          setCurrentGroups(EMPTY_GROUPS_STATE);
+          startExtraction(EMPTY_GROUPS_STATE);
+        }} 
       />
 
       {sheetInfo && (
-        <div style={{ width: '100%', maxWidth: '1200px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          {activeSection === 'prexc' && (
-            <SdoGrouping onGroupsChange={handleGroupsChange} hasData={true} />
-          )}
+        <div style={{ width: '100%', maxWidth: '1200px', display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '2rem' }}>
           
-          <GeneratorOptions 
-            availableSections={sheetInfo.foundSheets} 
-            onSectionChange={handleSectionChange}
-            onQuarterChange={handleQuarterChange}
-          />
+          {/* ---- MASSIVE TABS UI ---- */}
+          <div className={styles.mainTabsContainer}>
+            <button 
+              className={`${styles.mainTabBtn} ${isPrexcTab ? styles.mainTabActive : ''}`}
+              onClick={() => handleSectionChange('prexc')}
+            >
+              📋 PREXC REPORT
+            </button>
+            <button 
+              className={`${styles.mainTabBtn} ${!isPrexcTab ? styles.mainTabActive : ''}`}
+              onClick={() => {
+                // If they switch to Non-Prexc, default to the first SDO if it's currently on Prexc
+                if (isPrexcTab) handleSectionChange(SDO_LIST[0].code);
+              }}
+            >
+              📊 NON-PREXC REPORT
+            </button>
+          </div>
+
+          <div className={styles.tabContentArea}>
+            {isPrexcTab ? (
+              /* ---- PREXC TAB CONTENT ---- */
+              <div className={styles.tabSection}>
+                <h3 className={styles.tabHeading}>Configure PREXC Layout</h3>
+                <SdoGrouping onGroupsChange={handleGroupsChange} hasData={true} />
+                <QuarterSelector activeQuarter={activeQuarter} onQuarterChange={handleQuarterChange} />
+              </div>
+            ) : (
+              /* ---- NON-PREXC TAB CONTENT ---- */
+              <div className={styles.tabSection}>
+                <h3 className={styles.tabHeading}>Select NON-PREXC SDO</h3>
+                <div className={styles.nonPrexcGrid}>
+                  {SDO_LIST.map((sdo) => (
+                    <button
+                      key={sdo.code}
+                      className={`${styles.nonPrexcBtn} ${activeSection === sdo.code ? styles.nonPrexcActive : ''}`}
+                      onClick={() => handleSectionChange(sdo.code)}
+                    >
+                      {sdo.name}
+                    </button>
+                  ))}
+                </div>
+                <QuarterSelector activeQuarter={activeQuarter} onQuarterChange={handleQuarterChange} />
+              </div>
+            )}
+          </div>
           
           {activeGroups.length > 0 && (
             <div style={{ marginTop: '3rem', width: '100%' }}>

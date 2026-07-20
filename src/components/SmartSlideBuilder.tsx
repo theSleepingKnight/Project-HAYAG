@@ -25,9 +25,15 @@ export default function SmartSlideBuilder({ groups, setGroups }: SmartSlideBuild
   const allAssigned = Object.values(groups).flat();
   const unassignedSdos = DEFAULT_SDOS.filter(sdo => !allAssigned.includes(sdo));
 
+  const getEmptyState = () => {
+    const fresh: Record<string, string[]> = {};
+    groupKeys.forEach(k => fresh[k] = []);
+    return fresh;
+  };
+
   const moveToGroup = (sdo: string, targetGroup: string) => {
     setGroups(prev => {
-      const next: Record<string, string[]> = { ...EMPTY_GROUPS_STATE };
+      const next = getEmptyState();
       for (const k of groupKeys) {
         next[k] = [...(prev[k] || [])].filter(s => s !== sdo);
       }
@@ -59,7 +65,7 @@ export default function SmartSlideBuilder({ groups, setGroups }: SmartSlideBuild
 
   const randomizeGroups = (numSlides: number) => {
     const shuffled = [...DEFAULT_SDOS].sort(() => Math.random() - 0.5);
-    const next: Record<string, string[]> = { ...EMPTY_GROUPS_STATE };
+    const next = getEmptyState();
     
     shuffled.forEach((sdo, i) => {
       const targetGroup = groupKeys[i % numSlides];
@@ -75,7 +81,16 @@ export default function SmartSlideBuilder({ groups, setGroups }: SmartSlideBuild
   };
 
   const clearAll = () => {
-    setGroups({ ...EMPTY_GROUPS_STATE });
+    setGroups(getEmptyState());
+    setVisibleSlides(1);
+  };
+
+  const isolateSdo = (sdo: string) => {
+    setGroups(() => {
+      const next = getEmptyState();
+      next['Group A'] = [sdo];
+      return next;
+    });
     setVisibleSlides(1);
   };
 
@@ -83,12 +98,13 @@ export default function SmartSlideBuilder({ groups, setGroups }: SmartSlideBuild
     <div className={styles.container}>
        <div className={styles.presetsBar}>
          <span className={styles.presetLabel}>Auto-Distribute:</span>
-         <button onClick={() => randomizeGroups(1)} className={styles.presetBtn}>🎲 1 Slide</button>
-         <button onClick={() => randomizeGroups(2)} className={styles.presetBtn}>🎲 2 Slides</button>
-         <button onClick={() => randomizeGroups(3)} className={styles.presetBtn}>🎲 3 Slides</button>
-         <button onClick={() => randomizeGroups(4)} className={styles.presetBtn}>🎲 4 Slides</button>
+         <button onClick={() => randomizeGroups(2)} className={styles.presetBtn}>🎲 2 Groups</button>
+         <button onClick={() => randomizeGroups(3)} className={styles.presetBtn}>🎲 3 Groups</button>
+         <button onClick={() => randomizeGroups(4)} className={styles.presetBtn}>🎲 4 Groups</button>
          <div style={{flex: 1}}></div>
-         <button onClick={clearAll} className={styles.presetBtn} style={{ color: '#ef4444', borderColor: '#fca5a5' }}>Clear All</button>
+         <button onClick={clearAll} className={styles.presetBtn} style={{ color: '#ef4444', borderColor: '#fca5a5' }}>
+           🎯 Clear / Isolate SDO
+         </button>
        </div>
 
        <div 
@@ -96,7 +112,9 @@ export default function SmartSlideBuilder({ groups, setGroups }: SmartSlideBuild
          onDragOver={e => e.preventDefault()}
          onDrop={handleDropToTray}
        >
-         <h3 className={styles.trayHeader}>Tray: Unassigned SDOs</h3>
+         <h3 className={styles.trayHeader}>
+           Tray: Unassigned SDOs <span style={{fontSize: '0.75rem', fontWeight: 'normal', color: '#94a3b8', marginLeft: '6px', textTransform: 'none'}}>(Click or drag-and-drop any SDO to assign it)</span>
+         </h3>
          <div className={styles.chipContainer}>
            {unassignedSdos.map(sdo => (
              <div 
@@ -105,6 +123,8 @@ export default function SmartSlideBuilder({ groups, setGroups }: SmartSlideBuild
                draggable
                onDragStart={(e) => handleDragStart(e, sdo)}
                onClick={() => moveToGroup(sdo, groupKeys[0])} // Fast click to slide 1
+               onDoubleClick={() => isolateSdo(sdo)} // Instant isolate
+               data-tooltip="💡 Double-click to isolate | Drag to group"
                style={{ opacity: draggedSdo === sdo ? 0.5 : 1 }}
              >
                {sdo}
@@ -141,6 +161,7 @@ export default function SmartSlideBuilder({ groups, setGroups }: SmartSlideBuild
                      draggable
                      onDragStart={(e) => handleDragStart(e, sdo)}
                      onClick={() => moveToGroup(sdo, '')} // click kicks to tray
+                     data-tooltip="Click to return to Tray | Drag to move"
                      style={{ opacity: draggedSdo === sdo ? 0.5 : 1 }}
                    >
                      {sdo}

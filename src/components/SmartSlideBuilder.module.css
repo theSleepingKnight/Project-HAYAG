@@ -6,8 +6,8 @@
 }
 
 .unassignedTray {
-  background: var(--bg-secondary, #f8fafc);
-  border: 2px dashed #cbd5e1;
+  background: var(--slate-50);
+  border: 2px dashed var(--slate-200);
   border-radius: 12px;
   padding: 1.5rem;
   min-height: 100px;
@@ -38,13 +38,14 @@
 }
 
 .chip {
-  background: white;
-  border: 1px solid #e2e8f0;
+  position: relative;
+  background: var(--slate-100);
+  border: 1px solid var(--slate-200);
   border-radius: 9999px;
   padding: 0.5rem 1rem;
   font-size: 0.9rem;
   font-weight: 500;
-  color: #334155;
+  color: var(--slate-900);
   cursor: grab;
   user-select: none;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
@@ -54,10 +55,53 @@
   transition: all 0.15s ease;
 }
 
+.chip::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%) translateY(5px);
+  background: rgba(15, 23, 42, 0.95);
+  color: white;
+  padding: 0.4rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+  z-index: 50;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.chip::after {
+  content: '';
+  position: absolute;
+  bottom: 110%;
+  left: 50%;
+  transform: translateX(-50%) translateY(5px);
+  border-width: 6px;
+  border-style: solid;
+  border-color: rgba(15, 23, 42, 0.95) transparent transparent transparent;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 50;
+}
+
 .chip:hover {
   border-color: #cbd5e1;
   box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
   transform: translateY(-1px);
+}
+
+.chip:hover::before,
+.chip:hover::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .chip:active {
@@ -66,13 +110,13 @@
 }
 
 .chip.inSlide {
-  background: #eff6ff;
-  border-color: #bfdbfe;
-  color: #1e3a8a;
+  background: var(--slate-100);
+  border-color: var(--deped-navy);
+  color: var(--deped-navy);
 }
 
 .chip.inSlide:hover {
-  background: #dbeafe;
+  background: var(--slate-50);
 }
 
 .chipRemove {
@@ -82,8 +126,8 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #bfdbfe;
-  color: #1e40af;
+  background: var(--slate-200);
+  color: var(--slate-900);
   font-size: 0.75rem;
   font-weight: bold;
   cursor: pointer;
@@ -91,7 +135,8 @@
 }
 
 .chipRemove:hover {
-  background: #93c5fd;
+  background: var(--slate-400);
+  color: var(--slate-900);
 }
 
 .slidesGrid {
@@ -101,8 +146,8 @@
 }
 
 .slideCard {
-  background: white;
-  border: 1px solid #e2e8f0;
+  background: var(--slate-100);
+  border: 1px solid var(--slate-200);
   border-radius: 12px;
   padding: 1.25rem;
   display: flex;
@@ -164,7 +209,7 @@
 }
 
 .addSlideBtn {
-  border: 2px dashed #cbd5e1;
+  border: 2px dashed var(--slate-200);
   background: transparent;
   border-radius: 12px;
   display: flex;
@@ -172,7 +217,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  color: #64748b;
+  color: var(--slate-400);
   font-weight: 600;
   cursor: pointer;
   min-height: 180px;
@@ -180,9 +225,9 @@
 }
 
 .addSlideBtn:hover {
-  background: #f8fafc;
-  border-color: #94a3b8;
-  color: #475569;
+  background: var(--slate-100);
+  border-color: var(--slate-400);
+  color: var(--slate-900);
 }
 
 .presetsBar {
@@ -193,13 +238,13 @@
 }
 
 .presetBtn {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--slate-100);
+  border: 1px solid var(--slate-200);
   padding: 0.5rem 1rem;
   border-radius: 8px;
   font-size: 0.85rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--slate-900);
   cursor: pointer;
   display: flex;
   align-items: center;

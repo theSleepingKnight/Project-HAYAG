@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import styles from './SdoGrouping.module.css';
-import { INITIAL_GROUPS_STATE, EMPTY_GROUPS_STATE } from '@/lib/config';
+import { EMPTY_GROUPS_STATE } from '@/lib/config';
 import SmartSlideBuilder from './SmartSlideBuilder';
 
 interface SdoGroupingProps {
@@ -12,7 +12,6 @@ interface SdoGroupingProps {
 
 export default function SdoGrouping({ onGroupsChange, hasData }: SdoGroupingProps) {
   const [groups, setGroups] = useState<Record<string, string[]>>(EMPTY_GROUPS_STATE);
-  const [isSmartMode, setIsSmartMode] = useState(true);
 
   // 1. Initial Load: If hasData is true, we populate the initial names
   useEffect(() => {
@@ -37,8 +36,8 @@ export default function SdoGrouping({ onGroupsChange, hasData }: SdoGroupingProp
       }
     }
 
-    // If no saved data, use the Region IX defaults
-    setTimeout(() => setGroups(INITIAL_GROUPS_STATE), 0);
+    // Default to an empty group layout so all SDOs start in the Tray
+    setTimeout(() => setGroups(EMPTY_GROUPS_STATE), 0);
   }, [hasData]);
 
   // 2. Sync groups to parent + persist to localStorage (only if we HAVE data)
@@ -54,130 +53,15 @@ export default function SdoGrouping({ onGroupsChange, hasData }: SdoGroupingProp
   }, [groups, onGroupsChange, hasData]);
 
   return (
-    <div className={styles.container} style={{ display: 'flex', flexDirection: 'column' }}>
-      <div className={styles.headerArea} style={{ marginBottom: hasData ? '1rem' : '2rem' }}>
-        <h2 className={styles.title}>SDO Monitoring Grouping</h2>
-        {hasData && (
-          <button 
-            onClick={() => setIsSmartMode(!isSmartMode)} 
-            className={styles.presetBtn}
-            style={{ 
-              background: isSmartMode ? '#f8fafc' : '#eff6ff', 
-              color: isSmartMode ? '#64748b' : '#3b82f6',
-              borderColor: isSmartMode ? '#cbd5e1' : '#93c5fd',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-          >
-            {isSmartMode ? '⏮ Switch to Classic Dropdowns' : '✨ Switch to Smart Builder'}
-          </button>
-        )}
-      </div>
-
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
       {!hasData ? (
         <div className={styles.placeholder}>
           <div className={styles.placeholderIcon}>🔧</div>
           <p>Paste a Google Sheet link above to configure your SDO groups here.</p>
         </div>
       ) : (
-        isSmartMode ? (
-          <SmartSlideBuilder groups={groups} setGroups={setGroups} />
-        ) : (
-          <ClassicSdoGrouping groups={groups} setGroups={setGroups} />
-        )
+        <SmartSlideBuilder groups={groups} setGroups={setGroups} />
       )}
     </div>
-  );
-}
-
-// ------------------------------------------------------------------
-// CLASSIC FALLBACK COMPONENT
-// ------------------------------------------------------------------
-function ClassicSdoGrouping({ groups, setGroups }: { groups: Record<string, string[]>, setGroups: React.Dispatch<React.SetStateAction<Record<string, string[]>>> }) {
-  // We only show up to 3 groups in classic mode by default to match old behavior,
-  // or dynamic if more are used.
-  const [numGroups, setNumGroups] = useState(1);
-
-  useEffect(() => {
-    // Defer state updates to avoid synchronous cascading render warnings
-    setTimeout(() => {
-      if (groups["Group C"]?.length > 0) setNumGroups(3);
-      else if (groups["Group B"]?.length > 0) setNumGroups(2);
-    }, 0);
-  }, [groups]);
-
-  const randomizeTwoGroups = () => {
-    const all = Object.values(groups).flat();
-    const shuffled = [...all].sort(() => Math.random() - 0.5);
-    const half = Math.ceil(shuffled.length / 2);
-    setGroups({
-      ...EMPTY_GROUPS_STATE,
-      "Group A": shuffled.slice(0, half),
-      "Group B": shuffled.slice(half),
-    });
-    setNumGroups(2);
-  };
-
-  const randomizeThreeGroups = () => {
-    const all = Object.values(groups).flat();
-    const shuffled = [...all].sort(() => Math.random() - 0.5);
-    const third = Math.ceil(shuffled.length / 3);
-    setGroups({
-      ...EMPTY_GROUPS_STATE,
-      "Group A": shuffled.slice(0, third),
-      "Group B": shuffled.slice(third, third * 2),
-      "Group C": shuffled.slice(third * 2)
-    });
-    setNumGroups(3);
-  };
-
-  function moveToGroup(sdo: string, from: string, to: string) {
-    if (from === to) return;
-    setGroups((prev: Record<string, string[]>) => {
-      const next = { ...prev };
-      next[from] = next[from].filter(s => s !== sdo);
-      next[to] = [...next[to], sdo].sort();
-      return next;
-    });
-  }
-
-  const activeKeys = Object.keys(EMPTY_GROUPS_STATE).slice(0, Math.max(3, numGroups));
-
-  return (
-    <>
-      <div className={styles.headerArea} style={{ border: 'none', padding: 0, marginTop: '1rem' }}>
-        <div className={styles.presets}>
-          <button onClick={randomizeTwoGroups} className={styles.presetBtn} style={{ background: '#f59e0b', color: 'white' }}>🎲 Randomize (2 Groups)</button>
-          <button onClick={randomizeThreeGroups} className={styles.presetBtn} style={{ background: '#f59e0b', color: 'white' }}>🎲 Randomize (3 Groups)</button>
-        </div>
-      </div>
-      <div className={styles.layout}>
-        {activeKeys.map((groupName, index) => (
-          (index < numGroups || (groups[groupName] && groups[groupName].length > 0)) && (
-            <div key={groupName} className={styles.groupZone}>
-              <h3 className={styles.groupLabel}>{groupName}</h3>
-              <div className={styles.sdoList}>
-                {groups[groupName]?.map((sdo) => (
-                  <div key={sdo} className={styles.sdoCard}>
-                    <span className={styles.sdoName}>{sdo}</span>
-                    <select 
-                      className={styles.moveSelect}
-                      value={groupName}
-                      onChange={(e) => moveToGroup(sdo, groupName, e.target.value)}
-                    >
-                      {activeKeys.map(k => (
-                        <option key={k} value={k}>{k}</option>
-                      ))}
-                    </select>
-                  </div>
-                ))}
-                {(!groups[groupName] || groups[groupName].length === 0) && <div className={styles.emptyZone}>Empty</div>}
-              </div>
-            </div>
-          )
-        ))}
-      </div>
-    </>
   );
 }

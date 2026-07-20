@@ -253,8 +253,30 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                                 const rate = isIndividualSdoTab ? getAccomplishmentRate(val, row.annualTarget.ro, row.text) : null;
 
                                   const displayPercentage = val?.percentage;
-                                  const pillColor = '#dc2626'; // Bold Red
-                                  const pillBg = '#fef2f2';    // Light Red background
+                                  
+                                  let pillColor = '#dc2626'; // Bold Red
+                                  let pillBg = '#fef2f2';    // Light Red background
+
+                                  if (displayPercentage !== null && displayPercentage !== undefined) {
+                                    if (displayPercentage >= 90) {
+                                      pillColor = '#16803d'; // Green
+                                      pillBg = '#f0fdf4';
+                                    } else if (displayPercentage >= 70) {
+                                      pillColor = '#b45309'; // Amber
+                                      pillBg = '#fef9c3';
+                                    }
+                                  } else if (rate) {
+                                    const numRate = parseFloat(rate);
+                                    if (!isNaN(numRate)) {
+                                      if (numRate >= 90) {
+                                        pillColor = '#16803d';
+                                        pillBg = '#f0fdf4';
+                                      } else if (numRate >= 70) {
+                                        pillColor = '#b45309';
+                                        pillBg = '#fef9c3';
+                                      }
+                                    }
+                                  }
 
 
                                   if (isPrexcData) {
@@ -397,6 +419,7 @@ export default function SlidePreview({ slide, template = 'Formal' }: SlidePrevie
                                               backgroundColor: pillBg,
                                               padding: '2px 6px',
                                               borderRadius: '4px',
+                                              border: `1px solid ${pillColor}bb`,
                                               display: 'inline-block'
                                             }}>
                                               {displayPercentage !== null ? `${displayPercentage}%` : rate}
